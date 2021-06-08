@@ -368,7 +368,7 @@ headers={
 		'c++_code':
 			'''
 			var __python__divmod(var q,var w){
-				ret=vector<var>();
+				auto ret=std::vector<var>();
 				{python_iftype(q,int64_t){
 					auto d=s;
 					{python_iftype(w,int64_t){
@@ -384,8 +384,8 @@ headers={
 					auto e=cast(q,long double);
 					auto r=cast(w,long double);
 					auto t=std::floor(e/r);
-					ret[0]=t;
-					ret[1]=e-t*r;
+					ret.push_back(t);
+					ret.push_back(e-t*r);
 				}
 				return ret;
 			}
@@ -394,7 +394,39 @@ headers={
 			'''
 				python__builtins__divmod=__python__builtins__wrapper(__python__divmod)
 			''',
-		'depends':['python_variable','cmath','builtins__wrapper','vector']
+		'depends':['python_variable','cmath','builtins__wrapper','vector','builtins_float']
+	},
+	'builtins_float':{
+		'c++_code':
+			'''
+				var __python__float(var q=int64_t(0)){
+				//	{python_iftype(q,std::u32string){
+				//		return s;
+				//	}
+				//	}
+				//	{python_iftype(q,std::string){
+				//		return to_u32(s);
+				//	}
+				//	}
+					{python_iftype(q,int64_t){
+						return (long double)(s);
+					}
+					}
+					{python_iftype(q,long double){
+						return s;
+					}
+					}
+					{python_iftype(q,int){
+						return (long double)(s);
+					}
+					}
+				}
+			''',
+		'python_code':
+			'''
+				python__builtins__str=__python__builtins__wrapper(__python__float)
+			''',
+		'depends':['python_variable','builtins__wrapper','vector','string']
 	},
 	'builtins_id':{
 		'c++_code':
@@ -567,6 +599,7 @@ headers={
 					{python_iftype(a,std::u32string)d=to_u8(s);}
 					{python_iftype(a,int)d=std::to_string(s);}
 					{python_iftype(a,int64_t)d=std::to_string(s);}
+					{python_iftype(a,long double)d=std::to_string(s);}
 					{python_iftype(a,bool)d=s?"True":"False";}
 					return d;
 				}
@@ -824,7 +857,7 @@ headers={
 	# 			{python_iftype(q,int64_t){
 	# 				auto &d=s;
 	# 				{python_iftype(w,int64_t){
-	# 					return 1.0*d/s;
+	# 					return (long double)(1.0)*d/s;
 	# 				}
 	# 				}
 	# 				{python_iftype(w,long double){
@@ -1168,6 +1201,100 @@ rules={
 				return r;
 			''',
 	},
+	('int64_t','Div','int64_t'):{
+		'c++_code':
+			'''
+				return (long double)(1.0)*a/s;
+			''',
+	},
+	('int64_t','Div','bool'):{
+		'c++_code':
+			'''
+				return (long double)(1.0)*a/s;
+			''',
+	},
+	('bool','Div','int64_t'):{
+		'c++_code':
+			'''
+				return (long double)(1.0)*a/s;
+			''',
+	},
+	('bool','Div','bool'):{
+		'c++_code':
+			'''
+				return (long double)(1.0)*a/s;
+			''',
+	},
+	('long double','FloorDiv','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[0];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('long double','FloorDiv','int64_t'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[0];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('long double','FloorDiv','bool'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[0];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('int64_t','FloorDiv','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[0];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('bool','FloorDiv','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[0];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('long double','Mod','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[1];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('long double','Mod','int64_t'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[1];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('long double','Mod','bool'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[1];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('int64_t','Mod','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[1];
+			''',
+		'depends':['builtins_divmod']
+	},
+	('bool','Mod','long double'):{
+		'c++_code':
+			'''
+				return cast(__python__divmod(q,w),std::vector<var>)[1];
+			''',
+		'depends':['builtins_divmod']
+	},
 }
 
 
@@ -1241,21 +1368,11 @@ def make_code(q,w,e=None):
 		return ''
 
 for op in operators:
-	# ctypes=[w for w in types if w not in not_supported_with or op['name'] not in not_supported_with[w]]
 	typelist=[[]]
 	for w in range(op['args']):
 		typelist=[e+[r] for e in typelist for r in types]
 	headers['operator_'+op['name']]={'c++_code':'var python_operator_'+op['name']+'('+','.join(['var '+'qw'[w] for w in range(op['args'])])+'){\n'\
 	+''.join([
-		#  ''.join(['\t'+'\t'*w+'{python_iftype('+'qw'[w]+','+ts[w]+'){\n' for w in range(len(ts))])\
-		# +(
-		# 	'\t'*len(ts)+'\t'+'return '+('cast('+'qw'[:len(ts)-1]+','+ts[0]+')' if len(ts)==2 else '')+op['sign']+'cast('+'qw'[len(ts)-1]+','+ts[-1]+')\n'
-		# if ((ts[0],op['name'],ts[1]) if len(ts)==2 else (op['name'],ts[0])) not in rules else
-		# 		'\t'*len(ts)+'\t'+'auto a=cast('+'qw'[0]+','+ts[0]+');\n'+rules[(ts[0],op['name'],ts[1]) if len(ts)==2 else (op['name'],ts[0])]['c++_code']+'\n'
-		# 	if ((ts[0],op['name'],ts[1]) if len(ts)==2 else (op['name'],ts[0])) not in not_supported else
-		# 		''
-		# )\
-		# +''.join(['\t'*w+'\t}}\n' for w in range(len(ts))][::-1])
 		make_code(ts[0],op['name'],ts[1]) if len(ts)==2 else make_code(op['name'],ts[0])
 	for ts in typelist])\
 	+'\tstd::cout<<'+('q.type().name()<<' if op['args']==2 else '')+'"'+op['sign']+'"<<'+'qw'[op['args']-1]+'.type().name()'+'<<" is unsupported"<<std::endl;\n'\

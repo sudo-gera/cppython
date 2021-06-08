@@ -201,6 +201,8 @@ def generate(astobj):
 				ret='python_None'
 			if type(astobj.value)==type(0):
 				ret='int64_t('+str(astobj.value)+')'
+			if type(astobj.value)==type(0.0):
+				ret='(long double)('+str(astobj.value)+')'
 			if type(astobj.value)==type(''):
 				add('string')
 				ret='std::u32string({'+','.join([str(ord(w)) for w in astobj.value])+'})'+make_comment(astobj.value)
