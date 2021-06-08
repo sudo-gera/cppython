@@ -52,7 +52,6 @@ def add(*q):
 
 def generate(astobj):
 	global main_text_converted
-
 	# print(dump(astobj,indent=4))
 	global indent
 	indent+=1
@@ -210,7 +209,6 @@ def generate(astobj):
 		ret='\x1b[31m'+dump(astobj,indent=4)+'\x1b[0m'
 	indent-=1
 	return ret
-
 
 def convert(q,a=1):
 	if a:
