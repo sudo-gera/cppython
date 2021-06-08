@@ -30,12 +30,12 @@ def random_string():
 	random_string_seed+=1
 	return '_'+str(random_string_seed)
 
-print(dump(parse(text),indent=4))
+# print(dump(parse(text),indent=4))
 
 indent_sign='\t'
 indent=-1
 
-to_include=['levels']
+to_include={'levels','python_variable'}
 
 def make_comment(q):
 	return '/*'+str(q).replace('*/','*\\/')+'*/'
@@ -44,8 +44,16 @@ debug=0
 
 main_text_converted=0
 
+def add(*q):
+	global main_text_converted
+	if main_text_converted==0:
+		for w in q:
+			to_include.add(w)
+
 def generate(astobj):
-	print(dump(astobj,indent=4))
+	global main_text_converted
+
+	# print(dump(astobj,indent=4))
 	global indent
 	indent+=1
 	# if astobj.__class__.__name__=='Module':
@@ -58,28 +66,32 @@ def generate(astobj):
 	elif astobj.__class__.__name__=='Expr':
 		ret=indent_sign*indent+generate(astobj.value)+';\n'
 	elif astobj.__class__.__name__=='FunctionDef':
-		to_include.append('python_variable')
-		if hasattr(astobj,'returns') and generate(astobj.returns)==generate(Constant(value='__simple_function__')):
-			pass
+		add('python_variable')
+		add('any')
+		# if hasattr(astobj,'returns') and generate(astobj.returns)==generate(Constant(value='__simple_function__')):
+		# 	pass
 		fn=random_string()
-		ret =indent_sign*indent+'python_variable '+fn+'(python_variable args, python_variable kwargs){\n'\
+		ret =indent_sign*indent+'any '+fn+'(any args, any kwargs){\n'\
 			+indent_sign*indent+indent_sign+generate(Name(id=astobj.name,ctx=Store()))+'='+fn+';\n'\
 			+indent_sign*indent+indent_sign+'python_create_level()\n'\
 			+'\n'.join([generate(w) for w in astobj.body])+'\n'\
 			+indent_sign*indent+indent_sign+'python_delete_level()}\n'\
 			+''.join([generate(Assign(targets=[Name(id=astobj.name,ctx=Store())],value=Call(func=w,args=[Name(id=astobj.name,ctx=Load())],keywords=[])))+'\n' for w in astobj.decorator_list[::-1]])
 	elif astobj.__class__.__name__=='If':
-		to_include.append('builtins_bool')
-		ret=indent_sign*indent+'if(__python__bool('+generate(astobj.test)+').cast<bool>()){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}else{\n'+''.join([indent_sign*indent+generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}'
+		add('builtins_bool')
+		ret=indent_sign*indent+'if(cast(__python__bool('+generate(astobj.test)+'),bool)){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}else{\n'+''.join([indent_sign*indent+generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='While':
-		to_include.append('builtins_bool')
-		ret=indent_sign*indent+'while(__python__bool('+astobj.test+').cast<bool>()){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
+		add('builtins_bool')
+		ret=indent_sign*indent+'while(cast(__python__bool('+astobj.test+'),bool)){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='Pass':
 		ret=indent_sign*indent+'/*pass*/'
 	elif astobj.__class__.__name__=='Global':
 		ret=indent_sign*indent+'python_global('+','.join(astobj.names)+')'
 	elif astobj.__class__.__name__=='For':
-		ret=indent_sign*indent+'for('+generate(astobj.target)+':python_iterate('+generate(astobj.iter)+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
+		fn=random_string()
+		ret =indent_sign*indent+'for(var '+fn+':python_iterate('+generate(astobj.iter)+')){\n'\
+			+indent_sign*indent+indent_sign+generate(astobj.target)+'='+fn+';\n'\
+			+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='Nonlocal':
 		ret=indent_sign*indent+'python_nonlocal('+','.join(astobj.names)+')'
 	elif astobj.__class__.__name__=='Return':
@@ -87,8 +99,8 @@ def generate(astobj):
 	# elif astobj.__class__.__name__=='Delete':
 	# 	ret=indent_sign*indent+'python_delete_list('+','.join([generate(w) for w in astobj.targets])+');'
 	elif astobj.__class__.__name__=='Delete':
-		to_include.append('debug_str')
-		to_include.append('iostream')
+		add('debug_str')
+		add('iostream')
 		# ret=indent_sign*indent+'python_delete_list('+','.join([generate(w) for w in astobj.targets])+');'
 		ret=indent_sign*indent+'std::cout<<'+'<<" "<<'.join(['python_debug_str('+generate(w)+')' for w in astobj.targets])+'<<std::endl;'
 	elif astobj.__class__.__name__=='Assign':
@@ -101,9 +113,10 @@ def generate(astobj):
 		else:
 			ret='python_call('+generate(astobj.func)+','+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Name(id=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
 	elif astobj.__class__.__name__=='List':
-		to_include.append('builtins_list','vector')
+		add('builtins_list')
+		add('vector')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::vector<python_variable>({'+','.join([generate(w) for w in astobj.elts])+'})'
+			ret='std::vector<var>({'+','.join([generate(w) for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
@@ -113,9 +126,9 @@ def generate(astobj):
 					rsum=BinOp(left=rsum,op=Add(),right=List(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Set':
-		to_include.append('builtins_list','vector')
+		add('builtins_list','vector')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::set<python_variable>({'+','.join([generate(w) for w in astobj.elts])+'})'
+			ret='std::set<var>({'+','.join([generate(w) for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
@@ -125,7 +138,7 @@ def generate(astobj):
 					rsum=BinOp(left=rsum,op=Add(),right=List(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Dict':
-		to_include.append('builtins_dict')
+		add('builtins_dict')
 		retlist=List(elts=[])
 		for w in zip(astobj.keys,astobj.values):
 			if w[0]==None:
@@ -134,13 +147,34 @@ def generate(astobj):
 				retlist.elts.append(List(elts=list(w)))
 		ret='python_list_of_pairs_to_dict('+generate(retlist)+')'
 	elif astobj.__class__.__name__=='BinOp':
+		add('operator_'+astobj.op.__class__.__name__)
 		ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.left)+','+generate(astobj.right)+')'
 	elif astobj.__class__.__name__=='BoolOp':
-		ret='python_operator_'+astobj.op.__class__.__name__+'('+','.join([generate(w) for w in astobj.values])+')'
+		add('builtins_bool')
+		ret='('+(' '+astobj.op.__class__.__name__.lower()+' ').join(['__python__bool('+generate(w)+')' for w in astobj.values])+')'
 	elif astobj.__class__.__name__=='UnaryOp':
+		add('operator_'+astobj.op.__class__.__name__)
 		ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.operand)+')'
 	elif astobj.__class__.__name__=='Compare':
-		ret='python_operator_compare('+generate(astobj.left)+''.join([',"'+w[0].__class__.__name__+'",'+generate(w[1]) for w in zip(astobj.ops,astobj.comparators)])
+		add('builtins_bool','cache')
+		cl=[astobj.left]+sum([list(w) for w in zip(astobj.ops,astobj.comparators)],[])
+		ps=[]
+		for w in range(1,len(cl),2):
+			add('operator_'+cl[w].__class__.__name__)
+			r='python_operator_'+cl[w].__class__.__name__+'('
+			if w==1:
+				r+=generate(cl[0])
+			else:
+				r+='del_cache("'+rn+'")'
+			r+=','
+			if w==len(cl)-2:
+				r+=generate(cl[w+1])
+			else:
+				rn=random_string()
+				r+='set_cache('+generate(cl[w+1])+',"'+rn+'")'
+			r+=')'
+			ps.append(r)
+		ret='and'.join(ps)
 	elif astobj.__class__.__name__=='Name':
 		if debug:
 			ret=str(astobj.id)
@@ -153,7 +187,7 @@ def generate(astobj):
 			chn='builtins_'+chn
 			global main_text_converted
 			if main_text_converted==0 and chn in builtins:
-				to_include.append(chn)
+				add(chn)
 			if astobj.id.startswith('__python__'):
 				ret=str(astobj.id)
 			else:
@@ -163,12 +197,12 @@ def generate(astobj):
 			ret=str(astobj.value)
 		else:
 			if type(astobj.value)==type(None):
-				to_include.append('None')
+				add('None')
 				ret='python_None'
 			if type(astobj.value)==type(0):
 				ret='int64_t('+str(astobj.value)+')'
 			if type(astobj.value)==type(''):
-				to_include.append('string')
+				add('string')
 				ret='std::u32string({'+','.join([str(ord(w)) for w in astobj.value])+'})'+make_comment(astobj.value)
 	else:
 		ret='\x1b[31m'+dump(astobj,indent=4)+'\x1b[0m'
@@ -189,495 +223,18 @@ def convert(q,a=1):
 
 
 # builtins=['__import__', 'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'breakpoint', 'bytearray', 'bytes', 'callable', 'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod', 'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip']
-builtins=  [              'abs', 'all', 'any',          'bin', 'bool',               'bytearray', 'bytes',             'chr',                                                                'divmod',                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ]
+builtins=  [              'abs',                        'bin', 'bool',               'bytearray', 'bytes',             'chr',                                                                'divmod',                                                                                                                                                                                                 'list',                                                                                                                                                                                                             'str',                                               ]
 builtins=['builtins_'+w for w in builtins]
 
 text=convert(text,a=0)
 
-
 main_text_converted=1
 
-headers={
-	'None':{
-		'c++_code':
-			'''
-				class python_NoneType{};
-				python_NoneType python_None;
-			''',
-		'python_code':'',
-		'depends':[]
-	},
-	'iftype':{
-		'c++_code':
-		'''
-			#define python_iftype(a,type_) type_ s;if ((a).type()==typeid(std::declval<type_>())){s=(a).cast<type_>();}if ((a).type()==typeid(std::declval<type_>()))
-		''',
-		'python_code':'',
-		'depends':['python_variable'],
-	},
-	'python_variable':{
-		'c++_code':
-			'''
-				class python_variable{
-				public:
-					std::any*p;
-					int64_t*c;
-					python_variable(std::any a=0){
-						c=new int64_t;
-						*c=1;
-						p=new std::any;
-						*p=a;
-					}
-					python_variable(python_variable &a){
-						p=a.p;
-						c=a.c;
-						*c+=1;
-					}
-					~python_variable(){
-						*c-=1;
-						if (*c==0){
-							delete p;
-							delete c;
-						}
-					}
-					std::any &value(){
-						return *p;
-					}
-					template <typename t>
-					t cast(){
-						return std::any_cast<t>(*p);
-					}
-					auto type(){
-						return (*p).type();
-					}
-				};
-			''',
-		'python_code':'',
-		'depends':['any']
-	},
-	'builtins__wrapper':{
-		'c++_code':
-			'''
-			template<typename t>
-			class __python__builtins__wrapper{
-			public:
-				t d;
-				__python__builtins__wrapper(t f){
-					d=f;
-				}
-				python_variable operator()(python_variable q,python_variable w){
-					auto a=q.cast<std::vector<python_variable>>();
-					if (a.size()==0){
-						return d();
-					}
-					if (a.size()==1){
-						return d(a[0]);
-					}
-					if (a.size()==2){
-						return d(a[0],a[1]);
-					}
-					if (a.size()==3){
-						return d(a[0],a[1],a[2]);
-					}
-					if (a.size()==4){
-						return d(a[0],a[1],a[2],a[3]);
-					}
-					if (a.size()==5){
-						return d(a[0],a[1],a[2],a[3],a[4]);
-					}
-					if (a.size()==6){
-						return d(a[0],a[1],a[2],a[3],a[4],a[5]);
-					}
-					if (a.size()==7){
-						return d(a[0],a[1],a[2],a[3],a[4],a[5],a[6]);
-					}
-					if (a.size()==8){
-						return d(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]);
-					}
-				}
-			};
-			''',
-		'python_code':'',
-		'depends':['python_variable','vector']
-	},
-	'builtins_abs':{
-		'c++_code':
-			'''
-			std:: __python___abs(python_variable a){
-				{python_iftype(a,int){
-					return std::abs(s);
-				}
-				}
-				{python_iftype(a,int64_t){
-					return std::abs(s);
-				}
-				}
-				{python_iftype(a,long float){
-					return std::fabs(s);
-				}
-				}
-			}
-			''',
-		'python_code':
-			'''
-			python__builtins__abs=__python__builtins__wrapper(__python__abs)
-			''',
-		'depends':['iftype','python_variable','builtins__wrapper','cmath']
-	},
-	'builtins_all':{
-		'c++_code':
-			'''
-			python_variable __python__all(python_variable a){
-				for (python_variable w:python_iterate(a)){
-					if(!__python__bool(w).cast<bool>()){
-						return false;
-					}
-				}
-				return true;
-			}
-			''',
-		'python_code':
-			'''
-			python__builtins__all=__python__builtins__wrapper(__python__all)
-			''',
-		'depends':['python_variable','builtins__wrapper']
-	},
-	'builtins_any':{
-		'c++_code':
-			'''
-			python_variable __python__any(python_variable a){
-				for (python_variable w:python_iterate(a)){
-					if(__python__bool(w).cast<bool>()){
-						return true;
-					}
-				}
-				return false;
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__any=__python__builtins__wrapper(__python__any)
-			''',
-		'depends':['python_variable','builtins__wrapper']
-	},
-	'builtins_bin':{
-		'c++_code':
-			'''
-			python_variable __python__bin(python_variable a){
-				u32string f;
-					int64_t d=a.cast<int64_t>();
-				int64_t s=d<0?1:0;
-				d=std::abs(d);
-				while (d){
-					f.push_back(d%2+'0');
-					d/=2;
-				}
-				if (s){
-					f=u32string({'-'})+f;
-				}
-				return f;
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__bin=__python__builtins__wrapper(__python__bin)
-			''',
-		'depends':['python_variable','cmath','builtins__wrapper','stirng']
-	},
-	'builtins_bool':{
-		'c++_code':
-			'''
-			python_variable __python__bool(python_variable a=python_None){
-				{python_iftype(a,python_NoneType){
-					return false;
-				}
-				}
-				{python_iftype(a,int){
-					return s!=0;
-				}
-				}
-				{python_iftype(a,int64_t){
-					return s!=0;
-				}
-				}
-				{python_iftype(a,std::string){
-					return s.size()!=0;
-				}
-				}
-				{python_iftype(a,std::u32string){
-					return s.size()!=0;
-				}
-				}
-				{python_iftype(a,std::vector<python_variable>){
-					return s.size()!=0;
-				}
-				}
-				{python_iftype(a,std::set<python_variable>){
-					return s.size()!=0;
-				}
-				}
-				{python_iftype(a,std::map<python_variable>){
-					return s.size()!=0;
-				}
-				}
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__bool     =__python__builtins__wrapper(__python__bool)
-			''',
-		'depends':['iftype','python_variable','builtins__wrapper','None','vector','string','map','set']
-	},
-	'builtins_bytearray':{
-		'c++_code':
-			'''
-			python_variable __python__bytearray(python_variable q=std::string(),python_variable w=std::string()){
-				{iftype(q,std::string){
-					return q;
-				}
-				}
-				{iftype(q,std::u32string){
-					return to_u8(q);
-				}
-				}
-				{iftype(q,int64_t){
-					vector<char> a(t);
-					return std::string(a.begin(),a.end());
-				}
-				}
-				auto a=python_iterate(q)
-				return std::string(a.begin(),a.end());
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__bytearray=__python__builtins__wrapper(__python__bytearray)
-			''',
-		'depends':['iftype','python_variable','unicode_convert','builtins__wrapper','string']
-	},
-	'builtins_bytes':{
-		'c++_code':
-			'''
-			python_variable __python__bytearray(python_variable q=std::string(),python_variable w=std::string()){
-				{iftype(q,std::string){
-					return q;
-				}
-				}
-				{iftype(q,std::u32string){
-					return to_u8(q);
-				}
-				}
-				{iftype(q,int64_t){
-					vector<char> a(t);
-					return std::string(a.begin(),a.end());
-				}
-				}
-				auto a=python_iterate(q)
-				return std::string(a.begin(),a.end());
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__bytes    =__python__builtins__wrapper(__python__bytes)
-			''',
-		'depends':['iftype','python_variable','unicode_convert','builtins__wrapper','string']
-	},
-	'builtins_chr':{
-		'c++_code':
-			'''
-			python_variable __python__chr(python_variable q){
-				return std::u32string({chr(q.cast<int64_t>())});
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__chr=__python__builtins__wrapper(__python__chr)
-			''',
-		'depends':['python_variable','unicode_convert','builtins__wrapper','string']
-	},
-	'builtins_divmod':{
-		'c++_code':
-			'''
-			python_variable __python__divmod(python_variable q,python_variable w){
-				ret=vector<python_variable>();
-				{python_iftype(q,int64_t)
-					auto d=s;
-					{python_iftype(w,int64_t){
-						ret[0]=d/s;
-						ret[1]=d%s;
-					}
-				}
-				if (ret.size()==0){
-					q=__python__float(q);
-					w=__python__float(w);
-					auto e=q.cast<long double>();
-					auto r=w.cast<long double>();
-					auto t=std::floor(e/r);
-					ret[0]=t;
-					ret[1]=e-t*r;
-				}
-				return ret;
-			}
-			''',
-		'python_code':
-			'''
-				python__builtins__divmod=__python__builtins__wrapper(__python__divmod)
-			''',
-		'depends':['iftype','python_variable','cmath','builtins__wrapper','vector']
-	},
-	'unicode_convert':{
-		'c++_code':
-			r'''
-				char32_t chr(int64_t q){
-					if(q<(1<<7)){
-						return ((q&127)<<0);
-					}
-					if(q<(1<<11)){
-						return 49280+((q&1984)<<2)+((q&63)<<0);
-					}
-					if(q<(1<<16)){
-						return 14712960+((q&61440)<<4)+((q&4032)<<2)+((q&63)<<0);
-					}
-					if(q<(1<<21)){
-						return 4034953344+((q&1835008)<<6)+((q&258048)<<4)+((q&4032)<<2)+((q&63)<<0);
-					}
-					return 0;
-				}
+from json import loads
+from os.path import dirname
+headers=loads(open(str(dirname(__file__))+'/headers.json').read())
 
-				int64_t ord(char32_t q){
-					int64_t r=0;
-					int w,e;
-					for (w=3*8;w>-1;w-=8){
-						int started=0;
-						for (e=7;e>-1;--e){
-							if (started==0 and (q&(1<<(w+e)))==0){
-								started=1;
-							} else
-							if (started){
-								r=(r<<1)+!!(q&(1<<(w+e)));
-							}
-						}
-					}
-					return r;
-				}
-
-				std::u32string to_u32(std::string q){
-					std::u32string r;
-					for(int64_t w=0;w<q.size();++w){
-						if ((q[w]&(0b10000000))==0){
-							r.push_back(((int32_t(uint8_t(q[w]))<<0)));
-						}
-						if ((q[w]&(0b11100000))==0b11000000 and w<q.size()-1){
-							r.push_back(((int32_t(uint8_t(q[w]))<<8)+(int32_t(uint8_t(q[w+1]))<<0)));
-						}
-						if ((q[w]&(0b11110000))==0b11100000 and w<q.size()-2){
-							r.push_back(((int32_t(uint8_t(q[w]))<<16)+(int32_t(uint8_t(q[w+1]))<<8)+(int32_t(uint8_t(q[w+2]))<<0)));
-						}
-						if ((q[w]&(0b11111000))==0b11110000 and w<q.size()-3){
-							r.push_back(((int32_t(uint8_t(q[w]))<<24)+(int32_t(uint8_t(q[w+1]))<<16)+(int32_t(uint8_t(q[w+2]))<<8)+(int32_t(uint8_t(q[w+3]))<<0)));
-						}
-					}
-					for(auto &w:r){
-						w=ord(w);
-					}
-					return r;
-				}
-
-				std::string to_u8(std::u32string q){
-					for(auto &w:q){
-						w=chr(w);
-					}	
-					std::string r;
-					for(auto w:q){
-						if (w&0b11111111000000000000000000000000){
-							r.push_back((w&0b11111111000000000000000000000000)>>24);
-						}
-						if (w&0b111111110000000000000000){
-							r.push_back((w&0b111111110000000000000000)>>16);
-						}
-						if (w&0b1111111100000000){
-							r.push_back((w&0b1111111100000000)>>8);
-						}
-						r.push_back(w&0b11111111);
-					}
-					return r;
-				}
-			''',
-		'python_code':'',
-		'depends':['string']
-	},
-	'debug_str':{
-		'c++_code':
-		'''
-				std::string python_debug_str(python_variable a){
-					std::string d="type not found";
-					{python_iftype(a,int)d=s;}
-					{python_iftype(a,std::string)d=s;}
-					{python_iftype(a,std::u32string)d=to_u8(s);}
-					{python_iftype(a,int)d=std::to_string(s);}
-					{python_iftype(a,int64_t)d=std::to_string(s);}
-					return d;
-				}
-		''',
-		'python_code':'',
-		'depends':
-			['iftype','python_variable','unicode_convert'],
-	},
-	'stdc++':{'c++_code':'#include<bits/stdc++.h>','python_code':'','depends':[]},
-	'vector':{'c++_code':'#include<vector>','python_code':'','depends':[]},
-	'string':{'c++_code':'#include<string>','python_code':'','depends':[]},
-	'iostream':{'c++_code':'#include<iostream>','python_code':'','depends':[]},
-	'map':{'c++_code':'#include<map>','python_code':'','depends':[]},
-	'any':{'c++_code':'#include<any>','python_code':'','depends':[]},
-	'cmath':{'c++_code':'#include<cmath>','python_code':'','depends':[]},
-	'levels':{
-		'c++_code':
-			r'''
-				#define python_level_type_first std::u32string
-				#define python_level_type_second python_variable
-				std::vector<std::map<python_level_type_first,python_level_type_second*>> python_globals;
-				#define python_global(q)\
-				 	if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){\
-						python_locals[q]=0;\
-						python_globals[python_globals.size()-1][q]=&(python_locals[q]);\
-					}\
-					python_globals[python_globals.size()-1][q]=python_globals[0][q];\
-					
-				#define python_nonlocal(q)\
-				 	if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){\
-						python_locals[q]=0;\
-						python_globals[python_globals.size()-1][q]=&(python_locals[q]);\
-					}\
-					python_globals[python_globals.size()-1][q]=python_globals[python_globals.size()-2][q];
-					
-				#define python_get(q) (*(python_globals[python_globals.size()-1][q]))
-
-				#define python_set(q) python_set_(q,&python_locals)
-
-				python_level_type_second& python_set_(python_level_type_first q,std::map<python_level_type_first,python_level_type_second> *python_locals_pointer){
-					if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){
-						(*python_locals_pointer)[q]=0;
-						python_globals[python_globals.size()-1][q]=&((*python_locals_pointer)[q]);
-					}
-					return *(python_globals[python_globals.size()-1][q]);
-				}
-
-				#define python_create_level()\
-					python_globals.emplace_back();\
-					std::map<python_level_type_first,python_level_type_second> python_locals;
-
-				#define python_delete_level()\
-					python_globals.pop_back();
-			''',
-		'python_code':'',
-		'depends':
-			['vector','string','map','python_variable'],
-	},
-}
-
-
-
-
+to_include=list(to_include)
 for w in to_include:
 	to_include+=headers[w]['depends']
 to_include=to_include[::-1]
@@ -694,6 +251,6 @@ text=to_include_first+'\n'\
 	+'python_delete_level()}'
 
 # text=to_include_first+'\n'+'/'*80+'\n//main code\n'+text
-print(text)
+# print(text)
 if filename!=None:
 	open(filename+'.cpp','w').write(text)

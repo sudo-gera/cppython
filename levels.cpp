@@ -5,14 +5,14 @@ using namespace std;
 std::vector<std::map<python_level_type_first,python_level_type_second*>> python_globals;
 #define python_global(q)\
  	if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){\
-		python_locals[q]=0;\
+		python_locals[q]=int64_t(0);\
 		python_globals[python_globals.size()-1][q]=&(python_locals[q]);\
 	}\
 	python_globals[python_globals.size()-1][q]=python_globals[0][q];\
 	
 #define python_nonlocal(q)\
  	if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){\
-		python_locals[q]=0;\
+		python_locals[q]=int64_t(0);\
 		python_globals[python_globals.size()-1][q]=&(python_locals[q]);\
 	}\
 	python_globals[python_globals.size()-1][q]=python_globals[python_globals.size()-2][q];
@@ -23,7 +23,7 @@ std::vector<std::map<python_level_type_first,python_level_type_second*>> python_
 
 python_level_type_second& python_set_(python_level_type_first q,std::map<python_level_type_first,python_level_type_second> *python_locals_pointer){
 	if (python_globals[python_globals.size()-1].find(q) == python_globals[python_globals.size()-1].end()){
-		(*python_locals_pointer)[q]=0;
+		(*python_locals_pointer)[q]=int64_t(0);
 		python_globals[python_globals.size()-1][q]=&((*python_locals_pointer)[q]);
 	}
 	return *(python_globals[python_globals.size()-1][q]);
