@@ -1197,7 +1197,7 @@ op_names=[
 	[                                                                                                                                                                  ],
 	[                          'Add',                                                                                           'Eq', 'NotEq', 'Lt', 'LtE', 'Gt', 'GtE'],
 	[                                                                                              'BitOr', 'BitXor', 'BitAnd', 'Eq', 'NotEq',                         ],
-	['Uadd', 'Usub', 'Invert', 'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod', 'LShift', 'RShift', 'BitOr', 'BitXor', 'BitAnd', 'Eq', 'NotEq', 'Lt', 'LtE', 'Gt', 'GtE'],
+	['UAdd', 'USub', 'Invert', 'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod', 'LShift', 'RShift', 'BitOr', 'BitXor', 'BitAnd', 'Eq', 'NotEq', 'Lt', 'LtE', 'Gt', 'GtE'],
 ]
 
 
@@ -1236,7 +1236,7 @@ def make_code(q,w,e=None):
 		if op['name'] in op_names[support[q]] or (w,e) in usual:
 			return\
 				'\t{python_iftype(q,'+q+'){\n'+\
-				'\t\treturn '+[r['sign'] for r in operators if r['name']==w][0]+'s'+\
+				'\t\treturn '+[r['sign'] for r in operators if r['name']==w][0]+'s;'+\
 				'\t}}\n'				
 		return ''
 
