@@ -44,6 +44,8 @@ debug=0
 
 main_text_converted=0
 
+before_main=''
+
 def add(*q):
 	global main_text_converted
 	if main_text_converted==0:
@@ -65,43 +67,57 @@ def generate(astobj):
 	elif astobj.__class__.__name__=='Expr':
 		ret=indent_sign*indent+generate(astobj.value)+';\n'
 	elif astobj.__class__.__name__=='FunctionDef':
-		add('python_variable')
-		add('any')
 		# if hasattr(astobj,'returns') and generate(astobj.returns)==generate(Constant(value='__simple_function__')):
 		# 	pass
+		drn=dict([[(astobj.args.posonlyargs+astobj.args.args)[w-len(astobj.args.defaults)].arg,[astobj.args.defaults[w],random_string()]] for w in range(len(astobj.args.defaults))])
+		kdrn=dict([[(astobj.args.kwonlyargs)[w-len(astobj.args.kw_defaults)].arg,[astobj.args.kw_defaults[w],random_string()]] for w in range(len(astobj.args.kw_defaults)) if astobj.args.kw_defaults[w]!=None])
 		fn=random_string()
-		ret =indent_sign*indent+'any '+fn+'(any args, any kwargs){\n'\
+		ret =''\
+			+''.join([indent_sign*indent+drn[w][1]+'='+generate(drn[w][0])+';\n' for w in drn])\
+			+''.join([indent_sign*indent+kdrn[w][1]+'='+generate(kdrn[w][0])+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
 			+indent_sign*indent+indent_sign+generate(Name(id=astobj.name,ctx=Store()))+'='+fn+';\n'\
+			+''.join([generate(Assign(targets=[Name(id=astobj.name,ctx=Store())],value=Call(func=w,args=[Name(id=astobj.name,ctx=Load())],keywords=[])))+'\n' for w in astobj.decorator_list[::-1]])+'\n'
+		global before_main
+		before_main+=indent_sign*indent+make_comment(astobj.name)+'\n'\
+			+''.join([indent_sign*indent+'var '+drn[w][1]+';\n' for w in drn])\
+			+''.join([indent_sign*indent+'var '+kdrn[w][1]+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
+			+indent_sign*indent+'var '+fn+'(var args, var kwargs){\n'\
 			+indent_sign*indent+indent_sign+'python_create_level()\n'\
+			+''.join([indent_sign*indent+indent_sign+generate(Name(id=w,ctx=Store()))+'='+drn[w][1]+';\n' for w in drn])\
+			+''.join([indent_sign*indent+indent_sign+generate(Name(id=w,ctx=Store()))+'='+kdrn[w][1]+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
+			+''.join([indent_sign*indent+indent_sign+'if(cast(args,std::vector<var>).size()>'+str(w[0])+'){'+generate(Name(id=w[1].arg,ctx=Store()))+'=cast(args,std::vector<var>)['+str(w[0])+'];}\n' for w in enumerate(astobj.args.posonlyargs+astobj.args.args)])\
 			+'\n'.join([generate(w) for w in astobj.body])+'\n'\
-			+indent_sign*indent+indent_sign+'python_delete_level()}\n'\
-			+''.join([generate(Assign(targets=[Name(id=astobj.name,ctx=Store())],value=Call(func=w,args=[Name(id=astobj.name,ctx=Load())],keywords=[])))+'\n' for w in astobj.decorator_list[::-1]])
+			+generate(Return(value=None))+';\n'\
+			+indent_sign*indent+'}\n'
 	elif astobj.__class__.__name__=='If':
-		add('builtins_bool')
-		ret=indent_sign*indent+'if(cast(__python__bool('+generate(astobj.test)+'),bool)){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}else{\n'+''.join([indent_sign*indent+generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}'
+		add('python__bool')
+		ret=indent_sign*indent+'if(python__bool('+generate(astobj.test)+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}else{\n'+''.join([indent_sign*indent+generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='While':
-		add('builtins_bool')
-		ret=indent_sign*indent+'while(cast(__python__bool('+astobj.test+'),bool)){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
+		add('python__bool')
+		ret=indent_sign*indent+'while(python__bool('+astobj.test+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='Pass':
 		ret=indent_sign*indent+'/*pass*/'
 	elif astobj.__class__.__name__=='Global':
-		ret=indent_sign*indent+'python_global('+','.join(astobj.names)+')'
+		ret=indent_sign*indent+'python_global('+','.join([generate(Constant(value=w)) for w in astobj.names])+')'
 	elif astobj.__class__.__name__=='For':
 		fn=random_string()
 		ret =indent_sign*indent+'for(var '+fn+':python_iterate('+generate(astobj.iter)+')){\n'\
 			+indent_sign*indent+indent_sign+generate(astobj.target)+'='+fn+';\n'\
 			+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='Nonlocal':
-		ret=indent_sign*indent+'python_nonlocal('+','.join(astobj.names)+')'
+		ret=indent_sign*indent+'python_nonlocal('+','.join([Constant(value=w) for w in astobj.names])+')'
 	elif astobj.__class__.__name__=='Return':
-		ret=indent_sign*indent+'return '+(generate(astobj.value) if astobj.value!=None else generate(Constant(value=None)))+';'
+		ret =''\
+			+indent_sign*indent+'{var to_return='+(generate(astobj.value) if astobj.value!=None else generate(Constant(value=None)))+';\n'\
+			+indent_sign*indent+'python_delete_level()\n'\
+			+indent_sign*indent+'return to_return;}'
 	# elif astobj.__class__.__name__=='Delete':
 	# 	ret=indent_sign*indent+'python_delete_list('+','.join([generate(w) for w in astobj.targets])+');'
-	elif astobj.__class__.__name__=='Delete':
-		add('debug_str')
-		add('iostream')
-		# ret=indent_sign*indent+'python_delete_list('+','.join([generate(w) for w in astobj.targets])+');'
-		ret=indent_sign*indent+'std::cout<<'+'<<" "<<'.join(['python_debug_str('+generate(w)+')' for w in astobj.targets])+'<<std::endl;'
+	# elif astobj.__class__.__name__=='Delete':
+	# 	add('debug_str')
+	# 	add('iostream')
+	# 	# ret=indent_sign*indent+'python_delete_list('+','.join([generate(w) for w in astobj.targets])+');'
+	# 	ret=indent_sign*indent+'std::cout<<'+'<<" "<<'.join(['python_debug_str('+generate(w)+')' for w in astobj.targets])+'<<std::endl;'
 	elif astobj.__class__.__name__=='Assign':
 		ret=indent_sign*indent+''.join([generate(w)+'=' for w in astobj.targets])+generate(astobj.value)+';'
 	# elif astobj.__class__.__name__=='AugAssign':
@@ -110,12 +126,14 @@ def generate(astobj):
 		if astobj.func.__class__.__name__=='Name' and astobj.func.id.startswith('__python__'):
 			ret=generate(astobj.func)+'('+','.join([generate(w) for w in astobj.args])+')'			
 		else:
-			ret='python_call('+generate(astobj.func)+','+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Name(id=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
+			add('None')
+			add('func_example')
+			ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+',python_None)'
+			# ret='cast('+generate(astobj.func)+',std::function<var(var,var)>)('+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Name(id=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
 	elif astobj.__class__.__name__=='List':
-		add('builtins_list')
-		add('vector')
+		add('builtins_list','vector')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::vector<var>({'+','.join([generate(w) for w in astobj.elts])+'})'
+			ret='std::vector<var>({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
@@ -125,16 +143,16 @@ def generate(astobj):
 					rsum=BinOp(left=rsum,op=Add(),right=List(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Set':
-		add('builtins_list','vector')
+		add('builtins_set','vector','cmp')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::set<var>({'+','.join([generate(w) for w in astobj.elts])+'})'
+			ret='std::set<var>({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
 				if w.__class__.__name__=='Starred':
-					rsum=BinOp(left=rsum,op=Add(),right=Call(func=Name(id='__python__set',ctx=Load()),args=[w.value],keywords=[]))
+					rsum=BinOp(left=rsum,op=BinOr(),right=Call(func=Name(id='__python__set',ctx=Load()),args=[w.value],keywords=[]))
 				else:
-					rsum=BinOp(left=rsum,op=Add(),right=List(elts=[w]))
+					rsum=BinOp(left=rsum,op=BinOr(),right=List(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Dict':
 		add('builtins_dict')
@@ -147,33 +165,36 @@ def generate(astobj):
 		ret='python_list_of_pairs_to_dict('+generate(retlist)+')'
 	elif astobj.__class__.__name__=='BinOp':
 		add('operator_'+astobj.op.__class__.__name__)
-		ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.left)+','+generate(astobj.right)+')'
+		# ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.left)+','+generate(astobj.right)+')'
+		ret='(var('+generate(astobj.left)+')'+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+'var('+generate(astobj.right)+'))'
 	elif astobj.__class__.__name__=='BoolOp':
-		add('builtins_bool')
-		ret='('+(' '+astobj.op.__class__.__name__.lower()+' ').join(['__python__bool('+generate(w)+')' for w in astobj.values])+')'
+		add('python__bool')
+		ret='('+(' '+astobj.op.__class__.__name__.lower()+' ').join(['python__bool('+generate(w)+')' for w in astobj.values])+')'
 	elif astobj.__class__.__name__=='UnaryOp':
 		add('operator_'+astobj.op.__class__.__name__)
-		ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.operand)+')'
+		# ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.operand)+')'
+		ret='('+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+generate(astobj.right)+')'
 	elif astobj.__class__.__name__=='Compare':
 		add('builtins_bool','cache')
 		cl=[astobj.left]+sum([list(w) for w in zip(astobj.ops,astobj.comparators)],[])
 		ps=[]
 		for w in range(1,len(cl),2):
 			add('operator_'+cl[w].__class__.__name__)
-			r='python_operator_'+cl[w].__class__.__name__+'('
+			add('python__bool')
+			r='python__bool(var('
 			if w==1:
 				r+=generate(cl[0])
 			else:
 				r+='del_cache("'+rn+'")'
-			r+=','
+			r+=')'+[e for e in operators if e['name']==cl[w].__class__.__name__][0]['sign']+'var('
 			if w==len(cl)-2:
 				r+=generate(cl[w+1])
 			else:
 				rn=random_string()
 				r+='set_cache('+generate(cl[w+1])+',"'+rn+'")'
-			r+=')'
+			r+='))'
 			ps.append(r)
-		ret='and'.join(ps)
+		ret='('+' and '.join(ps)+')'
 	elif astobj.__class__.__name__=='Name':
 		if debug:
 			ret=str(astobj.id)
@@ -190,7 +211,7 @@ def generate(astobj):
 			if astobj.id.startswith('__python__'):
 				ret=str(astobj.id)
 			else:
-				ret=('python_get(' if astobj.ctx.__class__.__name__!='Store' else 'python_set(')+generate(Constant(value=astobj.id))+')'
+				ret=('python_level_get(' if astobj.ctx.__class__.__name__!='Store' else 'python_level_set(')+generate(Constant(value=astobj.id))+')'
 	elif astobj.__class__.__name__=='Constant':
 		if debug:
 			ret=str(astobj.value)
@@ -198,10 +219,18 @@ def generate(astobj):
 			if type(astobj.value)==type(None):
 				add('None')
 				ret='python_None'
+			if type(astobj.value)==type(True):
+				ret=str(astobj.value).lower()
+			if type(astobj.value)==type(...):
+				add('Ellipsis')
+				ret='python_Ellipsis'
 			if type(astobj.value)==type(0):
-				ret='int64_t('+str(astobj.value)+')'
+				ret='python_int('+str(astobj.value)+')'
+			if type(astobj.value)==type(1j):
+				add('complex')
+				ret='python_complex(0,'+str(astobj.value.imag)+')'
 			if type(astobj.value)==type(0.0):
-				ret='(long double)('+str(astobj.value)+')'
+				ret='(python_float)('+str(astobj.value)+')'
 			if type(astobj.value)==type(''):
 				add('string')
 				ret='std::u32string({'+','.join([str(ord(w)) for w in astobj.value])+'})'+make_comment(astobj.value)
@@ -222,26 +251,41 @@ def convert(q,a=1):
 	return '\n'.join([generate(w) for w in parse(q).body])+'\n'
 
 
-# builtins=['__import__', 'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'breakpoint', 'bytearray', 'bytes', 'callable', 'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod', 'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip']
-builtins=  [              'abs',                        'bin', 'bool',               'bytearray', 'bytes',             'chr',                                                                'divmod',                                                                                                                                                                                                 'list',                                                                                                                                                                                                             'str',                                               ]
-builtins=['builtins_'+w for w in builtins]
+# from json import loads
+# from os.path import dirname
+# headers=loads(open(str(dirname(__file__))+'/headers.json').read())
+
+from headers import *
+
+builtins=[w for w in headers if w.startswith('builtins_')]
 
 text=convert(text,a=0)
 
-main_text_converted=1
+before_main_of_main=before_main
 
-from json import loads
-from os.path import dirname
-headers=loads(open(str(dirname(__file__))+'/headers.json').read())
+before_main=''
+
+main_text_converted=1
 
 to_include=list(to_include)
 for w in to_include:
-	to_include+=headers[w]['depends']
+	try:
+		to_include+=headers[w]['depends']
+	except:
+		print('header',w,'not found, but there are some similar:')
+		from difflib import ndiff
+		for e in headers:
+			r=list(ndiff(w,e))
+			if len([t for t in r if t[0]==' '])/len(r)>0.5:
+				print(e)
 to_include=to_include[::-1]
 to_include=reduce(lambda a,s:a+[s] if s not in a else a,to_include,[])
 to_include_first=''.join(['\n/*'+'*'*76+'*/\n/*defining '+w+'*/\n'+headers[w]['c++_code']+'\n' for w in to_include])
 to_include_second=''.join(['\n/*'+'*'*76+'*/\n/*defining '+w+'*/\n'+convert(headers[w]['python_code'])+'\n' for w in to_include])
 text=to_include_first+'\n'\
+	+'/'*80+'\n//before main code\n'\
+	+before_main\
+	+before_main_of_main\
 	+'/'*80+'\n//main code\n'\
 	+'int main(int argc,char **argv){\n'\
 	+'python_create_level()\n'\
@@ -254,3 +298,6 @@ text=to_include_first+'\n'\
 # print(text)
 if filename!=None:
 	open(filename+'.cpp','w').write(text)
+	from subprocess import run
+	if run(['g++','-std=c++17','-Wfatal-errors',filename+'.cpp']).returncode==0:
+		run(['./a.out'])
