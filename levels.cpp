@@ -19,18 +19,20 @@ using namespace std;
 					}\
 					python_globals[python_globals.size()-1][q]=python_globals[python_globals.size()-2][q];
 					
-				python_level_type_second& python_level_get(python_level_type_first q){
+				#define python_level_get(...) python_level_get_with_line(__VA_ARGS__,__LINE__)
+
+				python_level_type_second& python_level_get_with_line(python_level_type_first q,int64_t line){
 					for (int64_t w=python_globals.size()-1;w>=0;--w){
 						if (python_globals[w].count(q)){
 							return *(python_globals[w][q]);
 						}
 					}
-					std::cout<<std::string("name ")+convert_first_type(q)+std::string(" is undefined")<<std::endl;
+					std::cout<<std::string("line ")<<line<<std::string("\nname ")+convert_first_type(q)+std::string(" is undefined")<<std::endl;
 					return *(python_globals[0][q]);
 				}
 
 				bool __python__isdefined(python_level_type_first q){
-					for (auto w=python_globals.size()-1;w>=0;--w){
+					for (int64_t w=python_globals.size()-1;w>=0;--w){
 						if (python_globals[w].count(q)){
 							return true;
 						}

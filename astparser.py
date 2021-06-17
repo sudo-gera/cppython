@@ -35,7 +35,7 @@ def random_string():
 indent_sign='\t'
 indent=-1
 
-to_include={'levels','python_variable'}
+to_include={'levels','python_variable','cmp'}
 
 def make_comment(q):
 	return '/*'+str(q).replace('*/','*\\/')+'*/'
@@ -54,7 +54,7 @@ def add(*q):
 
 def generate(astobj):
 	global main_text_converted
-	# print(dump(astobj,indent=4))
+	print(dump(astobj,indent=4))
 	global indent
 	indent+=1
 	# if astobj.__class__.__name__=='Module':
@@ -85,7 +85,10 @@ def generate(astobj):
 			+indent_sign*indent+indent_sign+'python_create_level()\n'\
 			+''.join([indent_sign*indent+indent_sign+generate(Name(id=w,ctx=Store()))+'='+drn[w][1]+';\n' for w in drn])\
 			+''.join([indent_sign*indent+indent_sign+generate(Name(id=w,ctx=Store()))+'='+kdrn[w][1]+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
-			+''.join([indent_sign*indent+indent_sign+'if(cast(args,std::vector<var>).size()>'+str(w[0])+'){'+generate(Name(id=w[1].arg,ctx=Store()))+'=cast(args,std::vector<var>)['+str(w[0])+'];}\n' for w in enumerate(astobj.args.posonlyargs+astobj.args.args)])\
+			+''.join([indent_sign*indent+indent_sign+'if(cast(kwargs,python_dict).count('+generate(Constant(value=w[1].arg))+')){'+generate(Name(id=w[1].arg,ctx=Store()))+'=cast(kwargs,python_dict)['+generate(Constant(value=w[1].arg))+'];}\n' for w in enumerate(astobj.args.posonlyargs+astobj.args.args+astobj.args.kwonlyargs)])\
+			+''.join([indent_sign*indent+indent_sign+'if(cast(args,python_list).size()>'+str(w[0])+'){'+generate(Name(id=w[1].arg,ctx=Store()))+'=cast(args,python_list)['+str(w[0])+'];}\n' for w in enumerate(astobj.args.posonlyargs+astobj.args.args)])\
+			+(indent_sign*indent+indent_sign+generate(Name(id=astobj.args.vararg.arg,ctx=Store()))+'=python_list();\n' if astobj.args.vararg!=None else '')\
+			+(indent_sign*indent+indent_sign+'if(cast(args,python_list).size()>'+str(len(astobj.args.posonlyargs+astobj.args.args))+'){'+generate(Name(id=astobj.args.vararg.arg,ctx=Store()))+'=python_list(cast(args,python_list).begin()+'+str(len(astobj.args.posonlyargs+astobj.args.args))+',cast(args,python_list).end());}\n' if astobj.args.vararg!=None else '')\
 			+'\n'.join([generate(w) for w in astobj.body])+'\n'\
 			+generate(Return(value=None))+';\n'\
 			+indent_sign*indent+'}\n'
@@ -128,12 +131,12 @@ def generate(astobj):
 		else:
 			add('None')
 			add('func_example')
-			ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+',python_None)'
-			# ret='cast('+generate(astobj.func)+',std::function<var(var,var)>)('+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Name(id=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
+			# ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+',python_None)'
+			ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Constant(value=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
 	elif astobj.__class__.__name__=='List':
 		add('builtins_list','vector')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::vector<var>({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
+			ret='python_list({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
@@ -143,30 +146,45 @@ def generate(astobj):
 					rsum=BinOp(left=rsum,op=Add(),right=List(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Set':
-		add('builtins_set','vector','cmp')
+		add('builtins_set','set','cmp')
 		if all([w.__class__.__name__!='Starred' for w in astobj.elts]):
-			ret='std::set<var>({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
+			ret='python_set({'+','.join(['var('+generate(w)+')' for w in astobj.elts])+'})'
 		else:
 			rsum=List(elts=[])
 			for w in astobj.elts:
 				if w.__class__.__name__=='Starred':
 					rsum=BinOp(left=rsum,op=BinOr(),right=Call(func=Name(id='__python__set',ctx=Load()),args=[w.value],keywords=[]))
 				else:
-					rsum=BinOp(left=rsum,op=BinOr(),right=List(elts=[w]))
+					rsum=BinOp(left=rsum,op=BinOr(),right=Set(elts=[w]))
 			ret=generate(rsum)
 	elif astobj.__class__.__name__=='Dict':
-		add('builtins_dict')
-		retlist=List(elts=[])
-		for w in zip(astobj.keys,astobj.values):
-			if w[0]==None:
-				retlist.elts.append(Starred(value=Call(func=Name(id='python_dict_to_list_of_pairs',ctx=Load()),args=[Call(func=Name(id='__python__dict',ctx=Load()),args=[w[1]],keywords=[])],keywords=[]),ctx=Load()))
-			else:
-				retlist.elts.append(List(elts=list(w)))
-		ret='python_list_of_pairs_to_dict('+generate(retlist)+')'
+		add('builtins_dict','map','cmp')
+		if all([w!=None for w in astobj.keys]):
+			ret='python_dict({'+','.join(['{var('+generate(w[0])+'),var('+generate(w[1])+')}' for w in zip(astobj.keys,astobj.values)])+'})'
+		else:
+			rsum=List(elts=[])
+			for w in zip(astobj.keys,astobj.values):
+				if w[0]==None:
+					rsum=BinOp(left=rsum,op=BinOr(),right=Call(func=Name(id='__python__dict',ctx=Load()),args=[w[1]],keywords=[]))
+				else:
+					rsum=BinOp(left=rsum,op=BinOr(),right=Dict(keys=[w[0]],values=[w[1]]))
+			ret=generate(rsum)
+
+		# add('builtins_dict')
+		# retlist=List(elts=[])
+		# for w in zip(astobj.keys,astobj.values):
+		# 	if w[0]==None:
+		# 		retlist.elts.append(Starred(value=Call(func=Name(id='python_dict_to_list_of_pairs',ctx=Load()),args=[Call(func=Name(id='__python__dict',ctx=Load()),args=[w[1]],keywords=[])],keywords=[]),ctx=Load()))
+		# 	else:
+		# 		retlist.elts.append(List(elts=list(w)))
+		# ret='__python__dict('+generate(retlist)+')'
 	elif astobj.__class__.__name__=='BinOp':
 		add('operator_'+astobj.op.__class__.__name__)
 		# ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.left)+','+generate(astobj.right)+')'
-		ret='(var('+generate(astobj.left)+')'+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+'var('+generate(astobj.right)+'))'
+		if astobj.op.__class__.__name__ in sum(op_names,[]):
+			ret='(var('+generate(astobj.left)+')'+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+'var('+generate(astobj.right)+'))'
+		else:
+			ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.left)+','+generate(astobj.right)+')'			
 	elif astobj.__class__.__name__=='BoolOp':
 		add('python__bool')
 		ret='('+(' '+astobj.op.__class__.__name__.lower()+' ').join(['python__bool('+generate(w)+')' for w in astobj.values])+')'
@@ -181,19 +199,33 @@ def generate(astobj):
 		for w in range(1,len(cl),2):
 			add('operator_'+cl[w].__class__.__name__)
 			add('python__bool')
-			r='python__bool(var('
-			if w==1:
-				r+=generate(cl[0])
+			if cl[w].__class__.__name__ not in 'In NotIn Is IsNot'.split():
+				r='python__bool(var('
+				if w==1:
+					r+=generate(cl[0])
+				else:
+					r+='del_cache("'+rn+'")'
+				r+=')'+[e for e in operators if e['name']==cl[w].__class__.__name__][0]['sign']+'var('
+				if w==len(cl)-2:
+					r+=generate(cl[w+1])
+				else:
+					rn=random_string()
+					r+='set_cache('+generate(cl[w+1])+',"'+rn+'")'
+				r+='))'
 			else:
-				r+='del_cache("'+rn+'")'
-			r+=')'+[e for e in operators if e['name']==cl[w].__class__.__name__][0]['sign']+'var('
-			if w==len(cl)-2:
-				r+=generate(cl[w+1])
-			else:
-				rn=random_string()
-				r+='set_cache('+generate(cl[w+1])+',"'+rn+'")'
-			r+='))'
-			ps.append(r)
+				r='python__bool(python_operator_'+cl[w].__class__.__name__+'('
+				if w==1:
+					r+=generate(cl[0])
+				else:
+					r+='del_cache("'+rn+'")'
+				r+=','
+				if w==len(cl)-2:
+					r+=generate(cl[w+1])
+				else:
+					rn=random_string()
+					r+='set_cache('+generate(cl[w+1])+',"'+rn+'")'
+				r+='))'
+			ps.append(r)				
 		ret='('+' and '.join(ps)+')'
 	elif astobj.__class__.__name__=='Name':
 		if debug:

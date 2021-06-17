@@ -21,6 +21,10 @@ operators=[
 	{'name':'LtE',		'sign':'<=',	'args':2},
 	{'name':'Gt',		'sign':'>',		'args':2},
 	{'name':'GtE',		'sign':'>=',	'args':2},
+	{'name':'In',		'sign':'',		'args':2},
+	{'name':'NotIn',	'sign':'',		'args':2},
+	{'name':'Is',		'sign':'',		'args':2},
+	{'name':'InNot',	'sign':'',		'args':2},
 ]
 
 rules={
@@ -378,15 +382,15 @@ rules={
 
 
 support='''
-python_complex                  |3|33000000000
-python_float                    |4|34440000000
-python_int                      |5|04550000000
-python_bool                     |5|04550000000
-python_bytearray                |0|00001000000
-python_str                      |0|00000100000
-python_list                     |0|00000010000
-python_set                      |0|00000001000
-python_dict                     |0|00000000100
+python_complex                  |7|77770000000
+python_float                    |8|78880000000
+python_int                      |9|78993330000
+python_bool                     |9|78993330000
+python_bytearray                |0|00334000000
+python_str                      |0|00330400000
+python_list                     |0|00330040000
+python_set                      |0|00000006000
+python_dict                     |0|00000000500
 python_NoneType                 |0|00000000000
 python_ellipsis                 |0|00000000000
 '''
@@ -406,12 +410,16 @@ not_supported=[
 ]
 
 op_names=[
-	[                                                                                                                         ],
-	[                                                                                                                         ],
-	[                                                                                              'BitOr', 'BitXor', 'BitAnd'],
-	['UAdd', 'USub',           'Add', 'Sub', 'Mult', 'Div',                                                                   ],
-	['UAdd', 'USub',           'Add', 'Sub', 'Mult', 'Div',                                                                   ],
-	['UAdd', 'USub', 'Invert', 'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod', 'LShift', 'RShift', 'BitOr', 'BitXor', 'BitAnd'],
+	[0,                                                                                                                         ],
+	[1,                                                                                                                         ],
+	[2,                                                                                                                         ],
+	[3,                                        'Mult',                                                                          ],
+	[4,                          'Add',                                                                                         ],
+	[5,                                                                                              'BitOr',                   ],
+	[6,                                 'Sub',                                                       'BitOr', 'BitXor', 'BitAnd'],
+	[7,'UAdd', 'USub',           'Add', 'Sub', 'Mult', 'Div',                                                                   ],
+	[8,'UAdd', 'USub',           'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod',                                                ],
+	[9,'UAdd', 'USub', 'Invert', 'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod', 'LShift', 'RShift', 'BitOr', 'BitXor', 'BitAnd'],
 ]
 
 
@@ -1060,6 +1068,20 @@ headers.update({
 			''',
 		'depends':['python_variable','complex','builtins_float']
 	},
+	'builtins_dict':{
+		'c++_code':
+			r'''
+				var __python__dict(var q=python_dict()){
+					auto s=python_dict();
+					return s;
+				}
+			''',
+		'python_code':
+			r'''
+				def dict(x):return __python__dict(x)
+			''',
+		'depends':['python_variable']
+	},
 	'builtins_divmod':{
 		'c++_code':
 			r'''
@@ -1199,7 +1221,7 @@ headers.update({
 			''',
 		'python_code':
 			r'''
-				def print(q,sep=' ',end='\n'):return __python__print(q,sep,end)
+				def print(*q,sep=' ',end='\n'):return __python__print(q,sep,end)
 			''',
 		'depends':['python_variable','vector','string','builtins_str','iostream','unicode_convert','None']
 	},
@@ -1553,13 +1575,15 @@ headers.update({
 					}\
 					python_globals[python_globals.size()-1][q]=python_globals[python_globals.size()-2][q];
 					
-				python_level_type_second& python_level_get(python_level_type_first q){
+				#define python_level_get(...) python_level_get_with_line(__VA_ARGS__,__LINE__)
+
+				python_level_type_second& python_level_get_with_line(python_level_type_first q,int64_t line){
 					for (int64_t w=python_globals.size()-1;w>=0;--w){
 						if (python_globals[w].count(q)){
 							return *(python_globals[w][q]);
 						}
 					}
-					std::cout<<std::string("name ")+convert_first_type(q)+std::string(" is undefined")<<std::endl;
+					std::cout<<std::string("line ")<<line<<std::string("\nname ")+convert_first_type(q)+std::string(" is undefined")<<std::endl;
 					return *(python_globals[0][q]);
 				}
 
