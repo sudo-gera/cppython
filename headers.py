@@ -66,7 +66,27 @@ rules={
 				return r;
 			''',
 	},
-	('python_int','Mult','vector<var>'):{
+	('python_int','Mult','python_list'):{
+		'c++_code':
+			r'''
+				auto r=decltype(s)();
+				for (python_int e=0;e<a;++e){
+					r.insert(r.end(),s.begin(),s.end());
+				}
+				return r;
+			''',
+	},
+	('python_list','Mult','python_bool'):{
+		'c++_code':
+			r'''
+				auto r=decltype(a)();
+				for (python_int e=0;e<s;++e){
+					r.insert(r.end(),a.begin(),a.end());
+				}
+				return r;
+			''',
+	},
+	('python_bool','Mult','python_list'):{
 		'c++_code':
 			r'''
 				auto r=decltype(s)();
@@ -86,7 +106,27 @@ rules={
 				return r;
 			''',
 	},
-	('python_int','Mult','u32string'):{
+	('python_int','Mult','python_str'):{
+		'c++_code':
+			r'''
+				auto r=decltype(s)();
+				for (python_int e=0;e<a;++e){
+					r.insert(r.end(),s.begin(),s.end());
+				}
+				return r;
+			''',
+	},
+	('python_str','Mult','python_bool'):{
+		'c++_code':
+			r'''
+				auto r=decltype(a)();
+				for (python_int e=0;e<s;++e){
+					r.insert(r.end(),a.begin(),a.end());
+				}
+				return r;
+			''',
+	},
+	('python_bool','Mult','python_str'):{
 		'c++_code':
 			r'''
 				auto r=decltype(s)();
@@ -106,7 +146,7 @@ rules={
 				return r;
 			''',
 	},
-	('python_int','Mult','string'):{
+	('python_int','Mult','python_bytearray'):{
 		'c++_code':
 			r'''
 				auto r=decltype(s)();
@@ -116,6 +156,27 @@ rules={
 				return r;
 			''',
 	},
+	('python_bytearray','Mult','python_bool'):{
+		'c++_code':
+			r'''
+				auto r=decltype(a)();
+				for (python_int e=0;e<s;++e){
+					r.insert(r.end(),a.begin(),a.end());
+				}
+				return r;
+			''',
+	},
+	('python_bool','Mult','python_bytearray'):{
+		'c++_code':
+			r'''
+				auto r=decltype(s)();
+				for (python_int e=0;e<a;++e){
+					r.insert(r.end(),s.begin(),s.end());
+				}
+				return r;
+			''',
+	},
+
 	('python_int','Div','python_int'):{
 		'c++_code':
 			r'''
@@ -210,6 +271,7 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
+
 	('python_int','Add','python_complex'):{
 		'c++_code':
 			r'''
@@ -224,7 +286,7 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
-	('python_int','Mul','python_complex'):{
+	('python_int','Mult','python_complex'):{
 		'c++_code':
 			r'''
 				return (python_float)(a)*s;
@@ -235,20 +297,6 @@ rules={
 		'c++_code':
 			r'''
 				return (python_float)(a)/s;
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_int','Eq','python_complex'):{
-		'c++_code':
-			r'''
-				return (python_float)(a)==s;
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_int','NotEq','python_complex'):{
-		'c++_code':
-			r'''
-				return (python_float)(a)!=s;
 			''',
 		'depends':['builtins_divmod']
 	},
@@ -266,7 +314,7 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
-	('python_bool','Mul','python_complex'):{
+	('python_bool','Mult','python_complex'):{
 		'c++_code':
 			r'''
 				return (python_float)(a)*s;
@@ -277,20 +325,6 @@ rules={
 		'c++_code':
 			r'''
 				return (python_float)(a)/s;
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_bool','Eq','python_complex'):{
-		'c++_code':
-			r'''
-				return (python_float)(a)==s;
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_bool','NotEq','python_complex'):{
-		'c++_code':
-			r'''
-				return (python_float)(a)!=s;
 			''',
 		'depends':['builtins_divmod']
 	},
@@ -308,7 +342,7 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
-	('python_complex','Mul','python_int'):{
+	('python_complex','Mult','python_int'):{
 		'c++_code':
 			r'''
 				return a*(python_float)(s);
@@ -319,20 +353,6 @@ rules={
 		'c++_code':
 			r'''
 				return a/(python_float)(s);
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_complex','Eq','python_int'):{
-		'c++_code':
-			r'''
-				return a==(python_float)(s);
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_complex','NotEq','python_int'):{
-		'c++_code':
-			r'''
-				return a!=(python_float)(s);
 			''',
 		'depends':['builtins_divmod']
 	},
@@ -350,7 +370,7 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
-	('python_complex','Mul','python_bool'):{
+	('python_complex','Mult','python_bool'):{
 		'c++_code':
 			r'''
 				return a*(python_float)(s);
@@ -364,17 +384,14 @@ rules={
 			''',
 		'depends':['builtins_divmod']
 	},
-	('python_complex','Eq','python_bool'):{
+	('python_set','Sub','python_set'):{
 		'c++_code':
 			r'''
-				return a==(python_float)(s);
-			''',
-		'depends':['builtins_divmod']
-	},
-	('python_complex','NotEq','python_bool'):{
-		'c++_code':
-			r'''
-				return a!=(python_float)(s);
+				auto z=python_set(a);
+				for (auto x:s){
+					z.erase(x);
+				}
+				return z;
 			''',
 		'depends':['builtins_divmod']
 	},
@@ -394,6 +411,20 @@ python_dict                     |0|00000000500
 python_NoneType                 |0|00000000000
 python_ellipsis                 |0|00000000000
 '''
+
+# support='''
+# python_complex                  |7|77000000000
+# python_float                    |8|78880000000
+# python_int                      |9|08990000000
+# python_bool                     |9|08990000000
+# python_bytearray                |0|00004000000
+# python_str                      |0|00000400000
+# python_list                     |0|00000040000
+# python_set                      |0|00000006000
+# python_dict                     |0|00000000500
+# python_NoneType                 |0|00000000000
+# python_ellipsis                 |0|00000000000
+# '''
 
 support=[w.split('|') for w in support.strip().split('\n')]
 support=[ [w[0].strip(),int(w[1]),[int(e) for e in w[2]]] for w in support]
@@ -474,7 +505,7 @@ for op in [op for op in operators if op['name'] in sum(op_names,[])]:
 		make_code(ts[0],op['name'],ts[1]) if len(ts)==2 else make_code(op['name'],ts[0])
 	for ts in typelist])\
 	+'\tstd::cout<<'+('filt(q.type().name())<<' if op['args']==2 else '')+'" '+op['sign']+' "<<filt('+'qw'[op['args']-1]+'.type().name())'+'<<" is unsupported"<<std::endl;\n'\
-	+'\treturn python_int(0);}',
+	+'\tfend()}',
 	'python_code':'','depends':['iostream','vector','string','filt','complex']+sum([
 			rules[w]['depends']
 		for w in [
@@ -496,15 +527,6 @@ def same_for_all_types(vars_,code,types=types):
 
 
 headers.update({
-	'None':{
-		'c++_code':
-			r'''
-				class python_NoneType{};
-				python_NoneType python_None;
-			''',
-		'python_code':'',
-		'depends':[]
-	},
 	'python__bool':{
 		'c++_code':
 			r'''
@@ -514,15 +536,6 @@ headers.update({
 			''',
 		'python_code':'',
 		'depends':['python_variable','builtins_bool']
-	},
-	'Ellipsis':{
-		'c++_code':
-			r'''
-				class python_ellipsis{};
-				python_ellipsis python_Ellipsis;
-			''',
-		'python_code':'Ellipsis=...',
-		'depends':[]
 	},
 	'cache':{
 		'c++_code':
@@ -548,11 +561,26 @@ headers.update({
 		'c++_code':
 			r'''
 
+
+				#define fend(q) std::cout<<"line "<<__LINE__<<":\n\tunexpected exit from function"<<std::endl;return make_value(q);
+
+				class python_NoneType{};
+				python_NoneType python_None;
+
+				class python_ellipsis{};
+				python_ellipsis python_Ellipsis;
+
+				template <typename T=python_NoneType>
+				auto make_value(T a=python_None){
+					return a;
+				}
+
 				#define python_complex				std::complex<double>
 				#define python_float				double
 				#define python_int					int64_t
 				#define python_bool					bool
 				#define python_bytearray			std::string
+				#define python_bytes				std::string
 				#define python_str					std::u32string
 				#define python_list					std::vector<var>
 				#define python_set					std::set<var>
@@ -570,6 +598,8 @@ headers.update({
 					if (var(a).type()==typeid(std::declval<python_variable<__VA_ARGS__>>()))
 
 				#define cast(q,...) (var(q).cast_with_line<__VA_ARGS__>(__LINE__))
+
+				#define super_cast(q,...) cast(__python__##__VA_ARGS__(q),python_##__VA_ARGS__)
 
 				#define print_line() std::cout<<__LINE__<<std::endl;
 
@@ -692,21 +722,30 @@ headers.update({
 						var orig;
 						var iter;
 						iterator(var q):orig(q),iter(q){
+							int64_t c=0;
 							{python_iftype(orig,python_list){
 								iter=cast(orig,decltype(s)).begin();
+								c=1;
 							}}
 							{python_iftype(orig,python_set){
 								iter=cast(orig,decltype(s)).begin();
+								c=1;
 							}}
 							{python_iftype(orig,python_dict){
 								iter=cast(orig,decltype(s)).begin();
+								c=1;
 							}}
 							{python_iftype(orig,python_str){
 								iter=cast(orig,decltype(s)).begin();
+								c=1;
 							}}
 							{python_iftype(orig,python_bytearray){
 								iter=cast(orig,decltype(s)).begin();
+								c=1;
 							}}
+							if(!c){
+								std::cout<<filt(orig.type().name())<<" is not iterable"<<std::endl;
+							}
 						}
 						
 						void operator++(){
@@ -726,7 +765,7 @@ headers.update({
 								 ++cast(iter,decltype(s)::iterator);
 							}}
 						}
-						python_bool operator!=(iterator o){
+						bool operator!=(iterator o){
 							{python_iftype(orig,python_list){
 								return cast(iter,decltype(s)::iterator)!=cast(orig,decltype(s)).end();
 							}}
@@ -742,6 +781,7 @@ headers.update({
 							{python_iftype(orig,python_bytearray){
 								return cast(iter,decltype(s)::iterator)!=cast(orig,decltype(s)).end();
 							}}
+							fend(0)
 						}
 						var operator*(){
 							{python_iftype(orig,python_list){
@@ -759,6 +799,7 @@ headers.update({
 							{python_iftype(orig,python_bytearray){
 								return python_bytearray({*cast(iter,decltype(s)::iterator)});
 							}}
+							fend();
 						}
 					};
 					iterator begin(){
@@ -769,8 +810,8 @@ headers.update({
 					}
 				};
 			''',
-		'python_code':'',
-		'depends':['any','iostream','string','vector','filt','set','map','complex','None','Ellipsis']
+		'python_code':'Ellipsis=...',
+		'depends':['any','iostream','string','vector','filt','set','map','complex','initializer_list','stdc++']
 	},
 	'cmp':{
 		'c++_code':
@@ -814,6 +855,7 @@ headers.update({
 						return python_int(qs<ws?-1:(qs>ws?1:0));
 					''',[w for w in types if w not in ['python_complex','python_NoneType','python_ellipsis','builtins_complex']])+r'''
 					std::cout<<"failed to compare "<<q.type().name()<<" and "<<w.type().name()<<std::endl;
+					fend(0)
 				}
 
 				bool var::operator<(const var o) const{
@@ -825,7 +867,7 @@ headers.update({
 		'python_code':
 			r'''
 			''',
-		'depends':['any','iostream','string','vector','filt','set','map','complex','None','Ellipsis','builtins_complex']
+		'depends':['any','iostream','string','vector','filt','set','map','complex','builtins_complex']
 	},
 	'filt':{
 		'c++_code':
@@ -853,18 +895,27 @@ headers.update({
 				}
 
 				std::string filt(std::string q){
-					return exec(std::string("c++filt -t ")+q);
+					auto a=exec(std::string("c++filt -t ")+q);
+					auto symbs=std::vector<char>(33);
+					iota(symbs.begin(),symbs.end(),0);
+					while(count(symbs.begin(),symbs.end(),a[0])){
+						a=std::string(a.begin()+1,a.end());
+					}
+					while(count(symbs.begin(),symbs.end(),a[a.size()-1])){
+						a=std::string(a.begin(),a.end()-1);
+					}
+					return a;
 				}
 			''',
 		'python_code':
 			r'''
 			''',
-		'depends':['string']
+		'depends':['string','vector','numeric']
 	},
 	'func_example':{
 		'c++_code':
 			r'''
-				var func_example(var args,var kwargs){return python_int(0);}
+				var func_example(var args,var kwargs){fend()}
 			''',
 		'python_code':
 			r'''
@@ -878,6 +929,7 @@ headers.update({
 				'''+same_for_all_types(['a'],r'''
 					return std::abs(s);
 				''',['python_int','int','python_float','python_complex'])+r'''
+				fend()
 			}
 			''',
 		'python_code':
@@ -987,40 +1039,45 @@ headers.update({
 					return s.size()!=0;
 				}
 				}
+				fend()
 			}
 			''',
 		'python_code':
 			r'''
 				def python_bool(x):return __python__bool(x)
 			''',
-		'depends':['python_variable','None','vector','string']
+		'depends':['python_variable','vector','string']
 	},
 	'builtins_bytearray':{
 		'c++_code':
 			r'''
 			var __python__bytearray(var q=python_bytearray(),var w=python_bytearray()){
-				{iftype(q,python_bytearray){
+				{python_iftype(q,python_bytearray){
 					return s;
 				}
 				}
-				{iftype(q,python_str){
-					return to_u8(q);
+				{python_iftype(q,python_str){
+					return to_u8(s);
 				}
 				}
-				{iftype(q,python_int){
-					vector<char> a(t);
+				{python_iftype(q,python_int){
+					auto a=std::vector<char>(s);
 					return python_bytearray(a.begin(),a.end());
 				}
 				}
-				auto a=python_iterate(q)
-				return python_bytearray(a.begin(),a.end());
+				auto a=cast(__python__list(q),python_list);
+				auto r=python_bytearray();
+				for (auto w:a){
+					r+=python_bytearray({char(cast(w,python_int))});
+				}
+				return r;
 			}
 			''',
 		'python_code':
 			r'''
 				def bytearray(x):return __python__bytearray(x)
 			''',
-		'depends':['python_variable','unicode_convert','string']
+		'depends':['python_variable','unicode_convert','string','builtins_list']
 	},
 	'builtins_bytes':{
 		'c++_code':
@@ -1028,9 +1085,9 @@ headers.update({
 			''',
 		'python_code':
 			r'''
-				def bytes(x):return __python__bytes(x)
+				def bytes(x):return __python__bytearray(x)
 			''',
-		'depends':['python_variable','unicode_convert','string']
+		'depends':['python_variable','unicode_convert','string','builtins_bytearray']
 	},
 	'builtins_chr':{
 		'c++_code':
@@ -1138,6 +1195,7 @@ headers.update({
 						return (python_float)(s);
 					}
 					}
+					fend()
 				}
 			''',
 		'python_code':
@@ -1153,6 +1211,7 @@ headers.update({
 				'''+same_for_all_types(['q'],r'''
 					return python_int(&cast(q,decltype(s)));
 				''')+r'''
+				fend()
 			}
 			''',
 		'python_code':
@@ -1161,11 +1220,37 @@ headers.update({
 			''',
 		'depends':['python_variable','string','vector']
 	},
+	'builtins_int':{
+		'c++_code':
+			r'''
+			var __python__int(var q=python_int(0),var w=python_int(0)){
+				{python_iftype(w,python_int){	
+				}else{
+					w=__python__int(w);					
+				}}
+				'''+same_for_all_types(['q'],r'''
+					return python_int(qs);
+				''',['python_int','python_float','python_bool'])+r'''
+				fend()
+			}
+			''',
+		'python_code':
+			r'''
+				def int(x):return __python__int(x)
+			''',
+		'depends':['python_variable','string']
+	},
 	'builtins_len':{
 		'c++_code':
 			r'''
 				var __python__len(var q){
 					{python_iftype(q,python_list){
+						return python_int(s.size());
+					}}
+					{python_iftype(q,python_set){
+						return python_int(s.size());
+					}}
+					{python_iftype(q,python_dict){
 						return python_int(s.size());
 					}}
 					{python_iftype(q,python_str){
@@ -1174,6 +1259,7 @@ headers.update({
 					{python_iftype(q,python_bytearray){
 						return python_int(s.size());
 					}}
+					fend()
 				}
 			''',
 		'python_code':
@@ -1223,7 +1309,62 @@ headers.update({
 			r'''
 				def print(*q,sep=' ',end='\n'):return __python__print(q,sep,end)
 			''',
-		'depends':['python_variable','vector','string','builtins_str','iostream','unicode_convert','None']
+		'depends':['python_variable','vector','string','builtins_str','iostream','unicode_convert']
+	},
+	'builtins_range':{
+		'c++_code':
+			r'''
+				struct range_struct{
+					struct range_iterator{
+						python_int val, step;
+						inline iterator(python_int v,python_int s){
+							val=v;
+							step=s;
+						}
+						inline bool operator!=(iterator o){
+							if (step>0 and val>=o.val){
+								return false;
+							}
+							if (step<0 and val<=o.val){
+								return false;
+							}
+							if (step==0 and val==o.val){
+								return false;
+							}
+							return true;
+						}
+						inline void operator++(){
+							val+=step;
+						}
+						inline int64_t operator*(){
+							return val;
+						}
+					};
+					int64_t start, stop, step;
+					inline iterator begin(){
+						iterator r(start,step);
+						return r;
+					}
+					inline iterator end(){
+						iterator r(stop,step);
+						return r;
+					}
+				};
+
+				var __python__range(var q,var w,var e){
+					return range_struct(cast(q,int),cast(w,int),cast(e,int));
+				}
+			''',
+		'python_code':
+			r'''
+				def range(q,w=None,e=None):
+					if w==None:
+						return __python__range(0,q,1)
+					if e==None:
+						return __python__range(q,w,1)
+					return __python__range(q,w,e)
+			''',
+		'depends':['python_variable','']
 	},
 	'builtins_set':{
 		'c++_code':
@@ -1240,7 +1381,7 @@ headers.update({
 			r'''
 				def set(x):return __python__set(x)
 			''',
-		'depends':['python_variable','vector']
+		'depends':['python_variable','set']
 	},
 	'builtins_str':{
 		'c++_code':
@@ -1251,7 +1392,25 @@ headers.update({
 					}
 					}
 					{python_iftype(q,python_bytearray){
-						return to_u32(s);
+						python_bytes r="b'";
+						for (auto _w:s){
+							auto w=(unsigned char)(_w);
+							if(w==9){
+								r+="\\t";
+							}else if(w==10){
+								r+="\\n";
+							}else if(w==13){
+								r+="\\r";
+							}else if(w==76){
+								r+="\\\\";
+							}else if(w>126 or w<32){
+								r+=python_bytes({'\\','x',python_bytes("0123456789abcdef")[w/16],python_bytes("0123456789abcdef")[w%16]});
+							}else{
+								r+=python_bytes({_w});
+							}
+						}
+						r+="'";
+						return to_u32(r);
 					}
 					}
 					{python_iftype(q,python_int){
@@ -1286,13 +1445,64 @@ headers.update({
 						return to_u32("Ellipsis");
 					}
 					}
+
+					fend()
 				}
 			''',
 		'python_code':
 			r'''
 				def str(x):return __python__str(x)
 			''',
-		'depends':['python_variable','vector','string','None','Ellipsis','unicode_convert','complex']
+		'depends':['python_variable','vector','string','unicode_convert','complex']
+	},
+	'builtins_time':{
+		'c++_code':
+			r'''
+				// Get time stamp in milliseconds.
+				uint64_t millis()
+				{
+				    uint64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::
+				                  now().time_since_epoch()).count();
+				    return ms; 
+				}
+
+				// Get time stamp in microseconds.
+				uint64_t micros()
+				{
+				    uint64_t us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::
+				                  now().time_since_epoch()).count();
+				    return us; 
+				}
+
+				// Get time stamp in nanoseconds.
+				uint64_t nanos()
+				{
+				    uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::
+				                  now().time_since_epoch()).count();
+				    return ns; 
+				}
+				var __python__time(){
+					return python_float(nanos())/1000000000;
+				}
+			''',
+		'python_code':
+			r'''
+				def time(x):return __python__time()
+			''',
+		'depends':['python_variable','set']
+	},
+	'builtins_type':{
+		'c++_code':
+			r'''
+				var __python__type(var q){
+					return to_u32(filt(q.type().name()));
+				}
+			''',
+		'python_code':
+			r'''
+				def type(x):return __python__type(x)
+			''',
+		'depends':['python_variable','unicode_convert','filt',]
 	},
 	'unicode_convert':{
 		'c++_code':
@@ -1375,25 +1585,6 @@ headers.update({
 		'python_code':'',
 		'depends':['string']
 	},
-	# 'debug_str':{
-	# 	'c++_code':
-	# 	'''
-	# 			python_bytearray python_debug_str(var a){
-	# 			//	python_bytearray d="type not found";
-	# 			//	{python_iftype(a,python_bytearray)d=s;}
-	# 			//	{python_iftype(a,python_str)d=to_u8(s);}
-	# 			//	{python_iftype(a,int)d=std::to_string(s);}
-	# 			//	{python_iftype(a,python_int)d=std::to_string(s);}
-	# 			//	{python_iftype(a,python_float)d=std::to_string(s);}
-	# 			//	{python_iftype(a,python_bool)d=s?"True":"False";}
-	# 			//	return d;
-	# 				return to_u8(cast(__python__str(a),python_str));
-	# 			}
-	# 	''',
-	# 	'python_code':'',
-	# 	'depends':
-	# 		['python_variable','unicode_convert','builtins_str','unicode_convert'],
-	# },
 	'operator_Not':{
 		'c++_code':
 		'''
@@ -1513,9 +1704,9 @@ headers.update({
 	'operator_In':{
 		'c++_code':
 		'''
-			var python_operator_NotIn(var q,var w){
+			var python_operator_In(var q,var w){
 				for (auto e:python_iterate(w)){
-					if (operator_Eq(q,e)){
+					if (cast(q==e,bool)){
 						return true;
 					}
 				}
@@ -1530,29 +1721,36 @@ headers.update({
 		'c++_code':
 		'''
 			var python_operator_NotIn(var q,var w){
-				return python_operator_Not(python_operator_In(q,w));
+				for (auto e:python_iterate(w)){
+					if (cast(q==e,bool)){
+						return false;
+					}
+				}
+				return true;
 			}
 		''',
 		'python_code':'',
 		'depends':
-			['python_variable','operator_In'],
+			['python_variable','operator_Eq'],
 	},
+	'any':{'c++_code':'#include<any>','python_code':'','depends':[]},
+	'set':{'c++_code':'#include<set>','python_code':'','depends':[]},
+	'map':{'c++_code':'#include<map>','python_code':'','depends':[]},
+	'cmath':{'c++_code':'#include<cmath>','python_code':'','depends':[]},
 	'stdc++':{'c++_code':'#include<bits/stdc++.h>','python_code':'','depends':[]},
 	'vector':{'c++_code':'#include<vector>','python_code':'','depends':[]},
+	'cstdio':{'c++_code':'#include<cstdio>','python_code':'','depends':[]},
+	'chrono':{'c++_code':'#include<chrono>','python_code':'','depends':[]},
 	'string':{'c++_code':'#include<string>','python_code':'','depends':[]},
+	'cstdlib':{'c++_code':'#include<cstdlib>','python_code':'','depends':[]},
+	'numeric':{'c++_code':'#include<numeric>','python_code':'','depends':[]},
 	'complex':{'c++_code':'#include<complex>','python_code':'','depends':[]},
 	'iostream':{'c++_code':'#include<iostream>','python_code':'','depends':[]},
 	'algorithm':{'c++_code':'#include<algorithm>','python_code':'','depends':[]},
 	'functional':{'c++_code':'#include<functional>','python_code':'','depends':[]},
 	'unordered_map':{'c++_code':'#include<unordered_map>','python_code':'','depends':[]},
 	'unordered_set':{'c++_code':'#include<unordered_set>','python_code':'','depends':[]},
-	'map':{'c++_code':'#include<map>','python_code':'','depends':[]},
-	'any':{'c++_code':'#include<any>','python_code':'','depends':[]},
-	'set':{'c++_code':'#include<set>','python_code':'','depends':[]},
-	'map':{'c++_code':'#include<map>','python_code':'','depends':[]},
-	'cmath':{'c++_code':'#include<cmath>','python_code':'','depends':[]},
-	'cstdio':{'c++_code':'#include<cstdio>','python_code':'','depends':[]},
-	'cstdlib':{'c++_code':'#include<cstdlib>','python_code':'','depends':[]},
+	'initializer_list':{'c++_code':'#include<initializer_list>','python_code':'','depends':[]},
 	'levels':{
 		'c++_code':
 			r'''
@@ -1616,6 +1814,208 @@ headers.update({
 		'python_code':'',
 		'depends':
 			['vector','string','unordered_map','python_variable','unicode_convert'],
+	},
+	'attribute_conjugate':{
+		'c++_code':
+		'''
+			var __python__attribute__conjugate(var a){
+				{python_iftype(a,python_complex){
+					return __python__complex(s.real(),-s.imag());
+				}}
+				{python_iftype(a,python_float){
+					return s;
+				}}
+				{python_iftype(a,python_int){
+					return s;
+				}}
+				{python_iftype(a,python_bool){
+					return s;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_conjugate(q):return __python__attribute__conjugate(q)',
+		'depends':
+			['python_variable','builtins_complex'],
+	},
+	'attribute_imag':{
+		'c++_code':
+		'''
+			var __python__attribute__imag(var a){
+				{python_iftype(a,python_complex){
+					return s.imag();
+				}}
+				{python_iftype(a,python_float){
+					return 0;
+				}}
+				{python_iftype(a,python_int){
+					return 0;
+				}}
+				{python_iftype(a,python_bool){
+					return 0;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_imag(q):__python__attribute__imag(q)',
+		'depends':
+			['python_variable','complex'],
+	},
+	'attribute_real':{
+		'c++_code':
+		'''
+			var __python__attribute__real(var a){
+				{python_iftype(a,python_complex){
+					return s.real();
+				}}
+				{python_iftype(a,python_float){
+					return s;
+				}}
+				{python_iftype(a,python_int){
+					return s;
+				}}
+				{python_iftype(a,python_bool){
+					return s;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_real(q):__python__attribute__real(q)',
+		'depends':
+			['python_variable','complex'],
+	},
+	'attribute_is_integer':{
+		'c++_code':
+		'''
+			var __python__attribute__is_integer(var a){
+				{python_iftype(a,python_float){
+					return python_int(s)==s;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_is_integer(q):__python__attribute__is_integer(q)',
+		'depends':
+			['python_variable'],
+	},
+	'attribute_bit_length':{
+		'c++_code':
+		'''
+			var __python__attribute__bit_length(var a){
+				{python_iftype(a,python_int){
+					python_int q=0;
+					while (s){
+						s/=2;
+						q+=1;
+					}
+					return q;
+				}}
+				{python_iftype(a,python_bool){
+					python_int q=0;
+					while (s){
+						s/=2;
+						q+=1;
+					}
+					return q;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_bit_length(q):__python__attribute__bit_length(q)',
+		'depends':
+			['python_variable'],
+	},
+	'attribute_denominator':{
+		'c++_code':
+		'''
+			var __python__attribute__denominator(var a){
+				return 1;
+				fend()
+			}
+		''',
+		'python_code':'def attribute_denominator(q):__python__attribute__denominator(q)',
+		'depends':
+			['python_variable'],
+	},
+	'attribute_numerator':{
+		'c++_code':
+		'''
+			var __python__attribute__numerator(var a){
+				{python_iftype(a,python_int){
+					return s;
+				}}
+				{python_iftype(a,python_bool){
+					return s;
+				}}
+				fend()
+			}
+		''',
+		'python_code':'def attribute_numerator(q):__python__attribute__numerator(q)',
+		'depends':
+			['python_variable','builtins_int'],
+	},
+	'attribute_to_bytes':{
+		'c++_code':
+		'''
+			var __python__attribute__to_bytes(var a,var s,var d){
+				auto q=cast(__python__int(a),python_int);
+				auto w=cast(__python__int(s),python_int);
+				auto e=cast(d,python_str);
+				python_bytes r;
+				while(q){
+					r+=python_bytes({char(q%256)});
+					q/=256;
+				}
+				reverse(r.begin(),r.end());
+				while (r.size()<w){
+					r+=python_bytes({char(0)});
+				}
+				if (e==python_str({'b','i','g'})){
+					reverse(r.begin(),r.end());
+				}
+				return r;
+				fend()
+			}
+		''',
+		'python_code':'def attribute_to_bytes(q,length,byteorder,):__python__attribute__to_bytes(q)',
+		'depends':
+			['python_variable','string','algorithm','builtins_int'],
+	},
+	'attribute_append':{
+		'c++_code':
+		'''
+			var __python__attribute__append(var a,var q){
+				python_iftype(a,python_bytearray){
+					cast(a,decltype(s)).push_back((char)cast(__python__int(q),python_int));
+				}
+				python_iftype(a,python_str){
+					cast(a,decltype(s)).push_back((chat32_t)cast(__python__int(q),python_int));
+				}
+				python_iftype(a,python_list){
+					cast(a,decltype(s)).push_back(q);
+				}
+				return python_None;
+				fend()
+			}
+		''',
+		'python_code':'',
+		'depends':
+			['builtins_int'],
+	},
+	'attribute_add':{
+		'c++_code':
+		'''
+			var __python__attribute__add(var a,var q){
+				python_iftype(a,python_set){
+					cast(a,decltype(s)).insert(q);
+				}
+				return python_None;
+				fend()
+			}
+		''',
+		'python_code':'',
+		'depends':
+			[],
 	},
 })
 

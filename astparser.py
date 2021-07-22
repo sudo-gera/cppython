@@ -38,7 +38,7 @@ indent=-1
 to_include={'levels','python_variable','cmp'}
 
 def make_comment(q):
-	return '/*'+str(q).replace('*/','*\\/')+'*/'
+	return ' /*'+repr(q).replace('*/','*_/')+'*/ '
 
 debug=0
 
@@ -52,9 +52,74 @@ def add(*q):
 		for w in q:
 			to_include.add(w)
 
+def set_types(astobj):
+	global main_text_converted
+	if main_text_converted==0:
+		print(dump(astobj,indent=4))
+	if 0:
+		ret=''
+	elif astobj.__class__.__name__=='Expr':
+		astobj.value=set_types(value)
+		if hasattr(astobj.value,'val_type'):
+			astobj.val_type=astobj.value.val_type
+	elif astobj.__class__.__name__=='FunctionDef':
+		pass
+	elif astobj.__class__.__name__=='If':
+		astobj.test=set_types(astobj.test)
+		astobj.body=[set_types(w) for w in astobj.body]
+		astobj.orelse=[set_types(w) for w in astobj.orelse]
+	elif astobj.__class__.__name__=='While':
+		astobj.test=set_types(astobj.test)
+		astobj.body=[set_types(w) for w in astobj.body]
+	elif astobj.__class__.__name__=='Pass':
+		pass
+	elif astobj.__class__.__name__=='Global':
+		pass
+	elif astobj.__class__.__name__=='For':
+		pass
+	elif astobj.__class__.__name__=='Nonlocal':
+		pass
+	elif astobj.__class__.__name__=='Return':
+		pass
+	elif astobj.__class__.__name__=='Delete':
+		pass
+	elif astobj.__class__.__name__=='Assign':
+		pass
+	elif astobj.__class__.__name__=='AugAssign':
+		pass
+	elif astobj.__class__.__name__=='Call':
+		pass
+	elif astobj.__class__.__name__=='List':
+		pass
+	elif astobj.__class__.__name__=='Set':
+		pass
+	elif astobj.__class__.__name__=='Dict':
+		pass
+	elif astobj.__class__.__name__=='BinOp':
+		pass
+	elif astobj.__class__.__name__=='BoolOp':
+		pass
+	elif astobj.__class__.__name__=='UnaryOp':
+		pass
+	elif astobj.__class__.__name__=='Compare':
+		pass
+	elif astobj.__class__.__name__=='Name':
+		pass
+	elif astobj.__class__.__name__=='Constant':
+		pass
+	return astobj
+
+
 def generate(astobj):
 	global main_text_converted
-	print(dump(astobj,indent=4))
+	aaaa=0
+	# aaaa=1
+	if aaaa and main_text_converted==0:
+		try:
+			print(dump(astobj,indent=4))
+		except:
+			print(astobj)
+	# print(dump(astobj,indent=4))
 	global indent
 	indent+=1
 	# if astobj.__class__.__name__=='Module':
@@ -62,6 +127,8 @@ def generate(astobj):
 	# 	+indent_sign*indent+indent_sign+'python_create_level()\n'\
 	# 	+indent_sign*indent+indent_sign+'python_headers\n'\
 	# 	+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+indent_sign+'python_delete_level()}'
+	global before_main
+	ret=''
 	if 0:
 		ret=''
 	elif astobj.__class__.__name__=='Expr':
@@ -77,7 +144,6 @@ def generate(astobj):
 			+''.join([indent_sign*indent+kdrn[w][1]+'='+generate(kdrn[w][0])+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
 			+indent_sign*indent+indent_sign+generate(Name(id=astobj.name,ctx=Store()))+'='+fn+';\n'\
 			+''.join([generate(Assign(targets=[Name(id=astobj.name,ctx=Store())],value=Call(func=w,args=[Name(id=astobj.name,ctx=Load())],keywords=[])))+'\n' for w in astobj.decorator_list[::-1]])+'\n'
-		global before_main
 		before_main+=indent_sign*indent+make_comment(astobj.name)+'\n'\
 			+''.join([indent_sign*indent+'var '+drn[w][1]+';\n' for w in drn])\
 			+''.join([indent_sign*indent+'var '+kdrn[w][1]+';\n' if kdrn[w][0]!=None else '' for w in kdrn])\
@@ -97,16 +163,16 @@ def generate(astobj):
 		ret=indent_sign*indent+'if(python__bool('+generate(astobj.test)+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}else{\n'+''.join([indent_sign*indent+generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}'
 	elif astobj.__class__.__name__=='While':
 		add('python__bool')
-		ret=indent_sign*indent+'while(python__bool('+astobj.test+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
+		ret=indent_sign*indent+'{bool breaked=0;while(python__bool('+generate(astobj.test)+')){\n'+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}if(breaked==0){\n'+''.join([generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}}'
 	elif astobj.__class__.__name__=='Pass':
 		ret=indent_sign*indent+'/*pass*/'
 	elif astobj.__class__.__name__=='Global':
 		ret=indent_sign*indent+'python_global('+','.join([generate(Constant(value=w)) for w in astobj.names])+')'
 	elif astobj.__class__.__name__=='For':
 		fn=random_string()
-		ret =indent_sign*indent+'for(var '+fn+':python_iterate('+generate(astobj.iter)+')){\n'\
+		ret =indent_sign*indent+'{bool breaked=0;for(var '+fn+':python_iterate('+generate(astobj.iter)+')){\n'\
 			+indent_sign*indent+indent_sign+generate(astobj.target)+'='+fn+';\n'\
-			+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}'
+			+''.join([generate(w)+'\n' for w in astobj.body])+indent_sign*indent+'}if(breaked==0){\n'+''.join([generate(w)+'\n' for w in astobj.orelse])+indent_sign*indent+'}}'
 	elif astobj.__class__.__name__=='Nonlocal':
 		ret=indent_sign*indent+'python_nonlocal('+','.join([Constant(value=w) for w in astobj.names])+')'
 	elif astobj.__class__.__name__=='Return':
@@ -123,13 +189,70 @@ def generate(astobj):
 	# 	ret=indent_sign*indent+'std::cout<<'+'<<" "<<'.join(['python_debug_str('+generate(w)+')' for w in astobj.targets])+'<<std::endl;'
 	elif astobj.__class__.__name__=='Assign':
 		ret=indent_sign*indent+''.join([generate(w)+'=' for w in astobj.targets])+generate(astobj.value)+';'
+	elif astobj.__class__.__name__=='Break':
+		ret=indent_sign*indent+'breaked=1;break;'
+	elif astobj.__class__.__name__=='Continue':
+		ret=indent_sign*indent+'continue;'
+	elif astobj.__class__.__name__=='IfExp':
+		add('python__bool')
+		ret='python__bool('+generate(astobj.test)+')?'+generate(astobj.body)+':'+generate(astobj.orelse)
+	elif astobj.__class__.__name__=='IfExp':
+		add('python__bool')
+		ret='python__bool('+generate(astobj.test)+')?'+generate(astobj.body)+':'+generate(astobj.orelse)
+	elif astobj.__class__.__name__=='ListComp':
+		ln=random_string()
+		ret=ln+'()'
+		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='append',ctx=Load()),args=[astobj.elt],keywords=[]))
+		# ro=astobj.elt
+		for w in astobj.generators[::-1]:
+			for e in w.ifs:
+				ro=If(test=e,orelse=[],body=[ro])
+			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
+		before_main+='var '+ln+'(){\n'\
+			+'\tvar __python__res=python_list();\n'\
+			+'\t'+generate(ro)+'\n'\
+			+'return __python__res;}\n'
+	elif astobj.__class__.__name__=='SetComp':
+		ln=random_string()
+		ret=ln+'()'
+		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='add',ctx=Load()),args=[astobj.elt],keywords=[]))
+		# ro=astobj.elt
+		for w in astobj.generators[::-1]:
+			for e in w.ifs:
+				ro=If(test=e,orelse=[],body=[ro])
+			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
+		before_main+='var '+ln+'(){\n'\
+			+'\tvar __python__res=python_set();\n'\
+			+'\t'+generate(ro)+'\n'\
+			+'return __python__res;}\n'
+	elif astobj.__class__.__name__=='DictComp':
+		ln=random_string()
+		ret=ln+'()'
+		# ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='add',ctx=Load()),args=[astobj.elt],keywords=[]))
+		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='add',ctx=Load()),args=[astobj.elt],keywords=[]))
+		# ro=astobj.elt
+		for w in astobj.generators[::-1]:
+			for e in w.ifs:
+				ro=If(test=e,orelse=[],body=[ro])
+			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
+		before_main+='var '+ln+'(){\n'\
+			+'\tvar __python__res=python_set();\n'\
+			+'\t'+generate(ro)+'\n'\
+			+'return __python__res;}\n'
+	elif astobj.__class__.__name__=='Attribute':
+		add('attribute_'+astobj.attr)
+		ret=generate(Call(func=Name(id='attribute_'+astobj.attr,ctx=Load()),args=[astobj.value],keywords=[]))	
 	# elif astobj.__class__.__name__=='AugAssign':
 	# 	ret=indent_sign*indent+generate(Call(func=Name(id='',ctx=Load()),args=[],keywords=[]))
 	elif astobj.__class__.__name__=='Call':
-		if astobj.func.__class__.__name__=='Name' and astobj.func.id.startswith('__python__'):
+		if type(astobj.func)==Name and astobj.func.id=='exec' and len(astobj.args)==1 and type(astobj.args[0])==Constant and type(astobj.args[0].value)==str:
+			ret=astobj.args[0].value
+		elif astobj.func.__class__.__name__=='Name' and astobj.func.id.startswith('__python__'):
 			ret=generate(astobj.func)+'('+','.join([generate(w) for w in astobj.args])+')'			
+		elif astobj.func.__class__.__name__=='Attribute':
+			add('attribute_'+astobj.func.attr)
+			ret=generate(Call(func=Name(id='attribute_'+astobj.func.attr,ctx=Load()),args=[astobj.func.value,*astobj.args],keywords=[*astobj.keywords]))
 		else:
-			add('None')
 			add('func_example')
 			# ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+',python_None)'
 			ret='(*cast('+generate(astobj.func)+',decltype(&func_example)))('+generate(List(elts=astobj.args,ctx=Load()))+','+generate(Dict(keys=[Constant(value=w.arg,ctx=Load()) for w in astobj.keywords],values=[w.value for w in astobj.keywords]))+')'
@@ -191,7 +314,7 @@ def generate(astobj):
 	elif astobj.__class__.__name__=='UnaryOp':
 		add('operator_'+astobj.op.__class__.__name__)
 		# ret='python_operator_'+astobj.op.__class__.__name__+'('+generate(astobj.operand)+')'
-		ret='('+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+generate(astobj.right)+')'
+		ret='('+[w for w in operators if w['name']==astobj.op.__class__.__name__][0]['sign']+generate(astobj.operand)+')'
 	elif astobj.__class__.__name__=='Compare':
 		add('builtins_bool','cache')
 		cl=[astobj.left]+sum([list(w) for w in zip(astobj.ops,astobj.comparators)],[])
@@ -237,7 +360,6 @@ def generate(astobj):
 			if chn.startswith('python__builtins__'):
 				chn=chn[len('python__builtins__'):]
 			chn='builtins_'+chn
-			global main_text_converted
 			if main_text_converted==0 and chn in builtins:
 				add(chn)
 			if astobj.id.startswith('__python__'):
@@ -249,7 +371,6 @@ def generate(astobj):
 			ret=str(astobj.value)
 		else:
 			if type(astobj.value)==type(None):
-				add('None')
 				ret='python_None'
 			if type(astobj.value)==type(True):
 				ret=str(astobj.value).lower()
@@ -267,7 +388,9 @@ def generate(astobj):
 				add('string')
 				ret='std::u32string({'+','.join([str(ord(w)) for w in astobj.value])+'})'+make_comment(astobj.value)
 	else:
-		ret='\x1b[31m'+dump(astobj,indent=4)+'\x1b[0m'
+		# ret=''
+		ret='/*'+dump(astobj,indent=4)+'*/'
+		# ret='\x1b[31m'+dump(astobj,indent=4)+'\x1b[0m'
 	indent-=1
 	return ret
 
@@ -280,6 +403,7 @@ def convert(q,a=1):
 		l=(len(q)-len(q.lstrip()))
 		q=q.split('\n')
 		q='\n'.join([w[l:] for w in q])
+	# return '\n'.join([generate(set_types(w)) for w in parse(q).body])+'\n'
 	return '\n'.join([generate(w) for w in parse(q).body])+'\n'
 
 
