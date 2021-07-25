@@ -32,7 +32,7 @@ else:
 	text=stdin.read()
 	print()
 
-random_string_seed=1000000000000000000
+random_string_seed=100000000
 def random_string(name=None):
 	global random_string_seed
 	random_string_seed+=1
@@ -45,12 +45,12 @@ def esc(q):
 	q=[q[w:w+3] for w in range(len(q))]
 	return ''.join(['_0' if w[0]=='_' and w[1:]=='0x' else w[0] if w[0] in '1234567890poiuytrewqasdfghjklmnbvcxz_ZXCVBNMLKJHGFDSAQWERTYUIOP' else '_'+str(hex(ord(w[0])))+'x0_' for w in q])
 
-class typename:
-	def __init__(s,**q):
-		for w in q:
-			s.__dict__[w]=q[w]
-	def __eq__(s,o):
-		return s.__dict__==o.__dict__
+# class typename:
+# 	def __init__(s,**q):
+# 		for w in q:
+# 			s.__dict__[w]=q[w]
+# 	def __eq__(s,o):
+# 		return s.__dict__==o.__dict__
 
 
 
@@ -63,21 +63,23 @@ def typename(**q):
 	if 'name' in a:
 		if q.name=='int':
 			return int
+		if q.name=='bool':
+			return bool
 		if q.name=='float':
-			return int
+			return float
 		if q.name=='str':
-			return int
+			return str
 		if q.name=='list' and 'elt' in a:
 			return List[q.elt]
 		if q.name=='set' and 'elt' in a:
 			return Set[q.elt]
 		if q.name=='dict' and 'key' in a and 'value' in a:
-			return Set[q.key,q.value]
+			return Dict[q.key,q.value]
 		if q.name=='void':
 			return 'void'
 		if q.name=='callable' and 'elts' in a:
 			return Callable[q.args,None]
-	error('cannot create type from',q)
+	error('cannot create type from',a)
 
 
 var_creation=[]
@@ -230,27 +232,39 @@ def typeof(astobj):
 			t=typeof(astobj.elts[0])
 		ret=List[t]
 	elif type(astobj)==ast.Tuple:
-		if len(astobj.elts)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret=Tuple[typeof(astobj.elts[0])]
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.elts)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.elts[0])
+		ret=List[t]
 	elif type(astobj)==ast.Set:
-		if len(astobj.elts)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret=Set[typeof(astobj.elts[0])]
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.elts)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.elts[0])
+		ret=Set[t]
 	elif type(astobj)==ast.Dict:
-		if len(astobj.keys)==0:
-			error('emply',type(astobj).__name__.lower())
-		if len(astobj.values)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.keys[w])!=typeof(astobj.keys[w+1]) for w in range(len(astobj.keys)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret=Dict[typeof(astobj.keys[0]),typeof(astobj.values[0])]
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.keys)==0:
+				error('emply',type(astobj).__name__.lower())
+			if len(astobj.values)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.keys[w])!=typeof(astobj.keys[w+1]) for w in range(len(astobj.keys)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.keys[0]),typeof(astobj.values[0])
+		ret=Dict[t[0],t[1]]
 	elif type(astobj)==ListComp:
 		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
@@ -278,7 +292,7 @@ def type_convert(q):
 	if q==typename(name='int'):
 		return 'int64_t'
 	if q==typename(name='bool'):
-		return 'int64_t'
+		return 'bool'
 	if q==typename(name='float'):
 		return 'long double'
 	if q==typename(name='str'):
@@ -443,27 +457,39 @@ def generate(astobj):
 			t=typeof(astobj.elts[0])
 		ret='vector<'+type_convert(t)+'>({'+','.join([generate(w) for w in astobj.elts])+'})'
 	elif type(astobj)==ast.Tuple:
-		if len(astobj.elts)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret='vector<'+type_convert(typeof(astobj.elts[0]))+'>({'+','.join([generate(w) for w in astobj.elts])+'})'
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.elts)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.elts[0])
+		ret='vector<'+type_convert(t)+'>({'+','.join([generate(w) for w in astobj.elts])+'})'
 	elif type(astobj)==ast.Set:
-		if len(astobj.elts)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret='set<'+type_convert(typeof(astobj.elts[0]))+'>({'+','.join([generate(w) for w in astobj.elts])+'})'
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.elts)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.elts[0])
+		ret='set<'+type_convert(t)+'>({'+','.join([generate(w) for w in astobj.elts])+'})'
 	elif type(astobj)==ast.Dict:
-		if len(astobj.keys)==0:
-			error('emply',type(astobj).__name__.lower())
-		if len(astobj.values)==0:
-			error('emply',type(astobj).__name__.lower())
-		if any([typeof(astobj.keys[w])!=typeof(astobj.keys[w+1]) for w in range(len(astobj.keys)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
-			error('different types in',type(astobj).__name__.lower())
-		ret='map<'+type_convert(typeof(astobj.keys[0]))+','+type_convert(typeof(astobj.values[0]))+'>({'+','.join(['{'+generate(w[0])+','+generate(w[1])+'}' for w in zip(astobj.keys,astobj.values)])+'})'
+		if hasattr(astobj,'type'):
+			t=astobj.type
+		else:
+			if len(astobj.keys)==0:
+				error('emply',type(astobj).__name__.lower())
+			if len(astobj.values)==0:
+				error('emply',type(astobj).__name__.lower())
+			if any([typeof(astobj.keys[w])!=typeof(astobj.keys[w+1]) for w in range(len(astobj.keys)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
+				error('different types in',type(astobj).__name__.lower())
+			t=typeof(astobj.keys[0]),typeof(astobj.keys[0])
+		ret='map<'+type_convert(t[0])+','+type_convert(t[1])+'>({'+','.join(['{'+generate(w[0])+','+generate(w[1])+'}' for w in zip(astobj.keys,astobj.values)])+'})'
 	elif type(astobj)==Pass:
 		ret='\t'*indent+make_comment('pass')+'\n'
 	elif type(astobj)==Return:
@@ -531,47 +557,65 @@ def generate(astobj):
 		# 	+'\t'+ro+'\n'\
 		# 	+'return __python__res;}\n'
 	elif type(astobj)==GeneratorExp:
+		fn=random_string()
 		ln=random_string()
-		ret=ln+'()'
-		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='append',ctx=Load()),args=[astobj.elt],keywords=[]))
-		# ro=astobj.elt
+		ro=Expr(value=Call(func=Attribute(value=Name(id=ln,ctx=Load()),attr='append',ctx=Load()),args=[astobj.elt],keywords=[]))
+		targets=[]
 		for w in astobj.generators[::-1]:
 			for e in w.ifs:
 				ro=If(test=e,orelse=[],body=[ro])
 			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
-		ro=generate(ro)
-		before_main+='auto '+ln+'(){\n'\
-			+'\tauto __python__res='+type_convert(typeof(astobj))+'();\n'\
-			+'\t'+ro+'\n'\
-			+'return __python__res;}\n'
+			if type(w.target)==Name:
+				targets.append(w.target.id)
+		generate(ro)
+		l=ast.List(elts=[],type=typeof(astobj.elt))
+		generate(FunctionDef(name=fn,args=arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),body=[
+			Assign(targets=[Name(id=ln,ctx=Store())],value=l),
+			Nonlocal(names=targets),
+			ro,
+			Return(value=Name(id=ln,ctx=Load()))
+		],decorator_list=[]))
+		ret=generate(Call(func=Name(id=fn,ctx=Load()),args=[]))
 	elif type(astobj)==SetComp:
+		fn=random_string()
 		ln=random_string()
-		ret=ln+'()'
-		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='add',ctx=Load()),args=[astobj.elt],keywords=[]))
-		# ro=astobj.elt
+		ro=Expr(value=Call(func=Attribute(value=Name(id=ln,ctx=Load()),attr='add',ctx=Load()),args=[astobj.elt],keywords=[]))
+		targets=[]
 		for w in astobj.generators[::-1]:
 			for e in w.ifs:
 				ro=If(test=e,orelse=[],body=[ro])
 			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
-		ro=generate(ro)
-		before_main+='auto '+ln+'(){\n'\
-			+'\tauto __python__res='+type_convert(typeof(astobj))+'();\n'\
-			+'\t'+ro+'\n'\
-			+'return __python__res;}\n'
+			if type(w.target)==Name:
+				targets.append(w.target.id)
+		generate(ro)
+		l=ast.Set(elts=[],type=typeof(astobj.elt))
+		generate(FunctionDef(name=fn,args=arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),body=[
+			Assign(targets=[Name(id=ln,ctx=Store())],value=l),
+			Nonlocal(names=targets),
+			ro,
+			Return(value=Name(id=ln,ctx=Load()))
+		],decorator_list=[]))
+		ret=generate(Call(func=Name(id=fn,ctx=Load()),args=[]))
 	elif type(astobj)==DictComp:
+		fn=random_string()
 		ln=random_string()
-		ret=ln+'()'
-		ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='update',ctx=Load()),args=[ast.Dict(keys=[astobj.key],values=[astobj.value])],keywords=[]))
-		# ro=astobj.elt
+		ro=Expr(value=Call(func=Attribute(value=Name(id=ln,ctx=Load()),attr='update',ctx=Load()),args=[ast.Dict(keys=[astobj.key],values=[astobj.value],ctx=Load())],keywords=[]))
+		targets=[]
 		for w in astobj.generators[::-1]:
 			for e in w.ifs:
 				ro=If(test=e,orelse=[],body=[ro])
 			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
-		ro=generate(ro)
-		before_main+='auto '+ln+'(){\n'\
-			+'\tauto __python__res='+type_convert(typeof(astobj))+'();\n'\
-			+'\t'+ro+'\n'\
-			+'return __python__res;}\n'
+			if type(w.target)==Name:
+				targets.append(w.target.id)
+		generate(ro)
+		l=ast.Dict(keys=[],values=[],type=(typeof(astobj.key),typeof(astobj.value)))
+		generate(FunctionDef(name=fn,args=arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),body=[
+			Assign(targets=[Name(id=ln,ctx=Store())],value=l),
+			Nonlocal(names=targets),
+			ro,
+			Return(value=Name(id=ln,ctx=Load()))
+		],decorator_list=[]))
+		ret=generate(Call(func=Name(id=fn,ctx=Load()),args=[]))
 	elif type(astobj)==UnaryOp:
 		if type(astobj.op)==UAdd:
 			ret='(+('+generate(astobj.operand)+'))'
