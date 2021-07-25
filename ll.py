@@ -45,10 +45,14 @@ def esc(q):
 	q=[q[w:w+3] for w in range(len(q))]
 	return ''.join(['_0' if w[0]=='_' and w[1:]=='0x' else w[0] if w[0] in '1234567890poiuytrewqasdfghjklmnbvcxz_ZXCVBNMLKJHGFDSAQWERTYUIOP' else '_'+str(hex(ord(w[0])))+'x0_' for w in q])
 
-# class typename:
-# 	def __init__(s,**q):
-# 		for w in q:
-# 			s.__dict__[w]=q[w]
+class typename:
+	def __init__(s,**q):
+		for w in q:
+			s.__dict__[w]=q[w]
+	def __eq__(s,o):
+		return s.__dict__==o.__dict__
+
+
 
 def typename(**q):
 	class a:pass
@@ -151,7 +155,7 @@ def typeof(astobj):
 		elif type(astobj.op)==USub:
 			ret=typeof(astobj.operand)
 		elif type(astobj.op)==Not:
-			ret=bool
+			ret=typename(name='bool')
 		elif type(astobj.op)==Invert:
 			ret=typeof(astobj.operand)
 	elif type(astobj)==BinOp:
@@ -184,9 +188,9 @@ def typeof(astobj):
 		elif typeof(astobj.right)==int:
 			ret=typeof(astobj.right)
 	elif type(astobj)==BoolOp:
-		ret=bool
+		ret=typename(name='bool')
 	elif type(astobj)==Compare:
-		ret=bool
+		ret=typename(name='bool')
 	elif type(astobj)==IfExp:
 		if typeof(astobj.body)!=typeof(astobj.orelse):
 			error('different types in',type(astobj).__name__.lower())
@@ -194,7 +198,7 @@ def typeof(astobj):
 	elif type(astobj)==NamedExpr:
 		ret=typeof(astobj.value)
 	elif type(astobj)==JoinedStr:
-		ret=str
+		ret=typename(name='str')
 	elif type(astobj)==Constant:
 		# if typenameenable:
 		ret=typename(name=type(astobj.value).__name__)
@@ -248,13 +252,13 @@ def typeof(astobj):
 			error('different types in',type(astobj).__name__.lower())
 		ret=Dict[typeof(astobj.keys[0]),typeof(astobj.values[0])]
 	elif type(astobj)==ListComp:
-		ret=List[typeof(astobj.elt)]
+		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
-		ret=List[typeof(astobj.elt)]
+		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==SetComp:
-		ret=Set[typeof(astobj.elt)]
+		ret=typename(name='set',elt=typeof(astobj.elt))
 	elif type(astobj)==DictComp:
-		ret=Dict[typeof(astobj.key),typeof(astobj.value)]
+		ret=typename(name='dict',key=typeof(astobj.key),value=typeof(astobj.value))
 	elif type(astobj)==Subscript:
 		if type(typeof(astobj.value))==type(List[int]):
 			ret=typeof(astobj.value).__args__[-1]
@@ -271,13 +275,13 @@ def typeof(astobj):
 	return ret
 
 def type_convert(q):
-	if q==int:
+	if q==typename(name='int'):
 		return 'int64_t'
-	if q==bool:
+	if q==typename(name='bool'):
 		return 'int64_t'
-	if q==float:
+	if q==typename(name='float'):
 		return 'long double'
-	if q==str:
+	if q==typename(name='str'):
 		return 'u32string'
 	if type(q)==type(List[int]):
 		if q._name=='List':
@@ -319,7 +323,7 @@ def return_type(astobj,r=0):
 	gen_stack.pop()
 	if r==0:
 		if len(ret)==0:
-			ret.append('void')
+			ret.append(typename(name='void'))
 		return ret[0]
 	else:
 		return ret
@@ -464,7 +468,7 @@ def generate(astobj):
 		ret='\t'*indent+make_comment('pass')+'\n'
 	elif type(astobj)==Return:
 		if astobj.value==None:
-			astobj.type='void'
+			astobj.type=typename(name='void')
 			ret='\t'*indent+'return ;\n'
 		else:
 			astobj.type=typeof(astobj.value)
