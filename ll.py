@@ -45,14 +45,46 @@ def esc(q):
 	q=[q[w:w+3] for w in range(len(q))]
 	return ''.join(['_0' if w[0]=='_' and w[1:]=='0x' else w[0] if w[0] in '1234567890poiuytrewqasdfghjklmnbvcxz_ZXCVBNMLKJHGFDSAQWERTYUIOP' else '_'+str(hex(ord(w[0])))+'x0_' for w in q])
 
-# class typename:
-# 	def __init__(s,**q):
-# 		for w in q:
-# 			s.__dict__[w]=q[w]
-# 	def __eq__(s,o):
-# 		return s.__dict__==o.__dict__
-
-
+class typename_new:
+	def __init__(s,o=None,**q):
+		if type(s)==type(o):
+			s.__dict__.update(o.__dict__)
+		elif o!=None:
+			if o==int:
+				s.name='int'
+			if o==bool:
+				s.name='bool'
+			if o==float:
+				s.name='float'
+			if o==str:
+				s.name='str'
+			if type(o)==str and o=='void'
+				s.name='void'
+			if type(q)==type(Callable[[],'void'].__args__[-1]) and type(q.__forward_arg__) and q.__forward_arg__=='void':
+				s.name='void'
+			if o==type(List[int]):
+				if o._name=='list':
+					s.name='list'
+					s.elt=o.__args__[0]
+				if o._name=='tuple':
+					s.name='tuple'
+					s.elt=o.__args__[0]
+				if o._name=='set':
+					s.name='set'
+					s.elt=o.__args__[0]
+				if o._name=='dict':
+					s.name='dict'
+					s.key=o.__args__[0]
+					s.value=o.__args__[1]
+			if type(o)==type(Callable[[],int]):
+				s.name='callable'
+				s.args=o.__args__[:-1]
+		else:
+			for w in q:
+				s.__dict__[w]=q[w]
+		error('cannot create type from',o,q)
+	def __eq__(s,o):
+		return s.__dict__==o.__dict__
 
 def typename(**q):
 	class a:pass
@@ -112,17 +144,17 @@ def name(q,t=None,e=0):
 		else:
 			c='0___0'
 			def pname(q):
-				if type(q)==type(List[int]):
-					z,x=q._name,'L_'+'__'.join([pname(w) for w in q.__args__])+'_J'
-				elif type(q)==type(Callable[[],int]):
-					z,x=q._name,'L_'+'__'.join([pname(w) for w in q.__args__[:-1]])+'_J'
-				elif type(q)==type(Callable[[],'void'].__args__[-1]) and type(q.__forward_arg__) and q.__forward_arg__=='void':
-					z,x=q.__forward_arg__,''
+				if typename_new(q).name in 'list set tuple'.split():
+					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [q.arg]])+'_J'
+				elif typename_new(q).name in 'dict'.split():
+					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [q.key,q.value]])+'_J'
+				elif typename_new(q).name=='callable':
+					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
 				else:
-					z,x=q.__name__,''
+					z,x=typename_new(q).name,''
 				# z=[(w if w==w.lower() else '_'+w.lower()+'_') if e else (w if w==w.upper() else '_'+w.upper()+'_').lower() for e,w in enumerate(z)]
 				return ''.join(z)+('_'+x if x else '')
-			if t in [int,str,float] or type(t)==type(List[int]) or type(t)==type(Callable[[],int]):
+			if typename_new(t).name in 'int bool float str list set tuple dict'.split():
 				c='0____0'
 				x=pname(t)
 			else:
