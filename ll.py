@@ -173,17 +173,17 @@ def name(q,t=None,e=0):
 		else:
 			c='0___0'
 			def pname(q):
-				if typename_new(q).name in 'list set tuple'.split():
-					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [typename_new(q).elt]])+'_J'
-				elif typename_new(q).name in 'dict'.split():
-					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [typename_new(q).key,typename_new(q).value]])+'_J'
-				elif typename_new(q).name=='callable':
-					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
+				if (q).name in 'list set tuple'.split():
+					z,x=(q).name,'L_'+'__'.join([pname(w) for w in [(q).elt]])+'_J'
+				elif (q).name in 'dict'.split():
+					z,x=(q).name,'L_'+'__'.join([pname(w) for w in [(q).key,(q).value]])+'_J'
+				elif (q).name=='callable':
+					z,x=(q).name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
 				else:
-					z,x=typename_new(q).name,''
+					z,x=(q).name,''
 				# z=[(w if w==w.lower() else '_'+w.lower()+'_') if e else (w if w==w.upper() else '_'+w.upper()+'_').lower() for e,w in enumerate(z)]
 				return ''.join(z)+('_'+x if x else '')
-			if typename_new(t).name in 'int bool float str list set tuple dict'.split():
+			if (t).name in 'int bool float str list set tuple dict'.split():
 				c='0____0'
 				x=pname(t)
 			else:
@@ -230,21 +230,21 @@ def typeof(astobj):
 			ret=typeof(astobj.left)
 		elif typeof(astobj.right)==str:
 			ret=typeof(astobj.right)
-		elif typename_new(typeof(astobj.left)).name=='list':
+		elif (typeof(astobj.left)).name=='list':
 			ret=typeof(astobj.left)
-		elif typename_new(typeof(astobj.right)).name=='list':
+		elif (typeof(astobj.right)).name=='list':
 			ret=typeof(astobj.right)
-		elif typename_new(typeof(astobj.left)).name=='tuple':
+		elif (typeof(astobj.left)).name=='tuple':
 			ret=typeof(astobj.left)
-		elif typename_new(typeof(astobj.right)).name=='tuple':
+		elif (typeof(astobj.right)).name=='tuple':
 			ret=typeof(astobj.right)
-		elif typename_new(typeof(astobj.left)).name=='set':
+		elif (typeof(astobj.left)).name=='set':
 			ret=typeof(astobj.left)
-		elif typename_new(typeof(astobj.right)).name=='set':
+		elif (typeof(astobj.right)).name=='set':
 			ret=typeof(astobj.right)
-		elif typename_new(typeof(astobj.left)).name=='dict':
+		elif (typeof(astobj.left)).name=='dict':
 			ret=typeof(astobj.left)
-		elif typename_new(typeof(astobj.right)).name=='dict':
+		elif (typeof(astobj.right)).name=='dict':
 			ret=typeof(astobj.right)
 		elif typeof(astobj.left)==int:
 			ret=typeof(astobj.left)
@@ -291,7 +291,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(typename_new(name='list',elt=t))
+		ret=typename((name='list',elt=t))
 	elif type(astobj)==ast.Tuple:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -301,7 +301,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(typename_new(name='list',elt=t))
+		ret=typename((name='list',elt=t))
 	elif type(astobj)==ast.Set:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -311,7 +311,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(typename_new(name='set',elt=t))
+		ret=typename((name='set',elt=t))
 	elif type(astobj)==ast.Dict:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -325,7 +325,7 @@ def typeof(astobj):
 			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.keys[0]),typeof(astobj.values[0])
-		ret=typename(typename_new(name='dict',key=t[0],value=t[1]))
+		ret=typename((name='dict',key=t[0],value=t[1]))
 	elif type(astobj)==ListComp:
 		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
@@ -335,9 +335,9 @@ def typeof(astobj):
 	elif type(astobj)==DictComp:
 		ret=typename(name='dict',key=typeof(astobj.key),value=typeof(astobj.value))
 	elif type(astobj)==Subscript:
-		if typename_new(typeof(astobj.value)) in 'list tuple set'.split():
+		if (typeof(astobj.value)) in 'list tuple set'.split():
 			ret=typeof(astobj.value).elt
-		elif typename_new(typeof(astobj.value)) in 'dict'.split():
+		elif (typeof(astobj.value)) in 'dict'.split():
 			ret=typeof(astobj.value).value
 		else:
 			ret=typeof(astobj.value)
@@ -360,17 +360,17 @@ def type_convert(q):
 		return 'long double'
 	if q==typename(name='str'):
 		return 'u32string'
-	if typename_new(q).name=='list':
-		return 'vector<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
-	if typename_new(q).name=='tuple':
-		return 'vector<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
-	if typename_new(q).name=='set':
-		return 'set<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
-	if typename_new(q).name=='dict':
-		return 'map<'+','.join([type_convert(w) for w in [typename_new(q).key,typename_new(q).value]])+'>'
-	if typename_new(q).name=='void':
+	if (q).name=='list':
+		return 'vector<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
+	if (q).name=='tuple':
+		return 'vector<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
+	if (q).name=='set':
+		return 'set<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
+	if (q).name=='dict':
+		return 'map<'+','.join([type_convert(w) for w in [(q).key,(q).value]])+'>'
+	if (q).name=='void':
 		return 'void'
-	if typename_new(q).name=='callable':
+	if (q).name=='callable':
 		return 'function'
 	error('type',q,'not found')
 
@@ -576,14 +576,14 @@ def generate(astobj):
 		'\t'*indent+'}`'
 	elif type(astobj)==For:
 		if type(astobj.target)==Name:
-			if typename_new(typeof(astobj.iter)).name in 'list tuple set'.split():
-				name(astobj.target.id,typename_new(typeof(astobj.iter)).elt)
-			elif typename_new(typeof(astobj.iter)).name in 'dict'.split():
-				name(astobj.target.id,typename_new(typeof(astobj.iter)).key)
+			if (typeof(astobj.iter)).name in 'list tuple set'.split():
+				name(astobj.target.id,(typeof(astobj.iter)).elt)
+			elif (typeof(astobj.iter)).name in 'dict'.split():
+				name(astobj.target.id,(typeof(astobj.iter)).key)
 			else:
 				name(astobj.target.id,typeof(astobj.iter))
 		ret='\t'*indent+'for (auto iterator:'+generate(astobj.iter)+'){\n'+\
-		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(typeof(astobj.iter))+'({iterator})' if typename_new(typeof(astobj.iter)).name not in 'list tuple set dict'.split() else 'iterator.first' if typename_new(typeof(astobj.iter)).name=='dict' else 'iterator')+';\n'+\
+		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(typeof(astobj.iter))+'({iterator})' if (typeof(astobj.iter)).name not in 'list tuple set dict'.split() else 'iterator.first' if (typeof(astobj.iter)).name=='dict' else 'iterator')+';\n'+\
 		''.join([generate(w) for w in astobj.body])+\
 		'\t'*indent+'}'
 	elif type(astobj)==ListComp:
@@ -728,7 +728,7 @@ def generate(astobj):
 		if type(astobj.slice==Slice):
 			pass
 		else:
-			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if typename_new(typeof(astobj.value)).name in 'list tuple set dict'.split() else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
+			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if (typeof(astobj.value)).name in 'list tuple set dict'.split() else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
 	indent-=1
 	gen_stack.pop()
 	return ret
