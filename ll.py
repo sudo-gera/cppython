@@ -47,9 +47,15 @@ def esc(q):
 
 class typename_new:
 	def __init__(s,o=None,**q):
+		if type(o)==dict:
+			q=o
+		s.q={}
 		if type(s)==type(o):
-			s.__dict__.update(o.__dict__)
+			s.q.update(o.q)
 		elif o!=None:
+			d=s
+			class s():pass
+			s=s()
 			if o==int:
 				s.name='int'
 			if o==bool:
@@ -58,35 +64,57 @@ class typename_new:
 				s.name='float'
 			if o==str:
 				s.name='str'
-			if type(o)==str and o=='void'
+			if type(o)==str and o=='void':
 				s.name='void'
 			if type(q)==type(Callable[[],'void'].__args__[-1]) and type(q.__forward_arg__) and q.__forward_arg__=='void':
 				s.name='void'
-			if o==type(List[int]):
-				if o._name=='list':
+			if type(o)==type(List[int]):
+				if o._name=='List':
 					s.name='list'
 					s.elt=o.__args__[0]
-				if o._name=='tuple':
+				if o._name=='Tuple':
 					s.name='tuple'
 					s.elt=o.__args__[0]
-				if o._name=='set':
+				if o._name=='Set':
 					s.name='set'
 					s.elt=o.__args__[0]
-				if o._name=='dict':
+				if o._name=='Dict':
 					s.name='dict'
 					s.key=o.__args__[0]
 					s.value=o.__args__[1]
 			if type(o)==type(Callable[[],int]):
 				s.name='callable'
 				s.args=o.__args__[:-1]
+			d.q.update(s.__dict__)
+			s=d
 		else:
-			for w in q:
-				s.__dict__[w]=q[w]
-		error('cannot create type from',o,q)
+			s.q=q
+		# s.q={w:typename_new(s.q[w]) for w in s.q}
 	def __eq__(s,o):
-		return s.__dict__==o.__dict__
+		if type(s)==type(o):
+			return s.__dict__==o.__dict__
+		return False
+	def __getattr__(s,n):
+		if n in s.q:
+			return s.q[n]
+		else:
+			error(s.name,'has no',n)
+	def __hash__(s):
+		from pickle import dumps
+		return hash(dumps(s.q))
+	def __reduce__(s):
+		return typename_new,(s.q,)
 
-def typename(**q):
+def typename(o=None,**q):
+	if type(o)==typename_new:
+		if o.name in 'list tuple set'.split():
+			q={'name':o.name,'elt':o.elt}
+		elif o.name in 'dict'.split():
+			q={'name':o.name,'key':o.key,'value':o.value}
+		elif o.name in 'callable'.split():
+			q={'name':o.name,'args':o.args}
+		else:
+			q={'name':o.name}
 	class a:pass
 	a=a()
 	for w in q:
@@ -109,10 +137,11 @@ def typename(**q):
 			return Dict[q.key,q.value]
 		if q.name=='void':
 			return 'void'
-		if q.name=='callable' and 'elts' in a:
+		if q.name=='callable' and 'args' in a:
 			return Callable[q.args,None]
 	error('cannot create type from',a)
 
+typename=typename_new
 
 var_creation=[]
 var_escape=[]
@@ -145,9 +174,9 @@ def name(q,t=None,e=0):
 			c='0___0'
 			def pname(q):
 				if typename_new(q).name in 'list set tuple'.split():
-					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [q.arg]])+'_J'
+					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [typename_new(q).elt]])+'_J'
 				elif typename_new(q).name in 'dict'.split():
-					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [q.key,q.value]])+'_J'
+					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in [typename_new(q).key,typename_new(q).value]])+'_J'
 				elif typename_new(q).name=='callable':
 					z,x=typename_new(q).name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
 				else:
@@ -201,21 +230,21 @@ def typeof(astobj):
 			ret=typeof(astobj.left)
 		elif typeof(astobj.right)==str:
 			ret=typeof(astobj.right)
-		elif type(typeof(astobj.left))==type(List[int]) and typeof(astobj.right)._name=='List':
+		elif typename_new(typeof(astobj.left)).name=='list':
 			ret=typeof(astobj.left)
-		elif type(typeof(astobj.right))==type(List[int]) and typeof(astobj.right)._name=='List':
+		elif typename_new(typeof(astobj.right)).name=='list':
 			ret=typeof(astobj.right)
-		elif type(typeof(astobj.left))==type(List[int]) and typeof(astobj.right)._name=='Tuple':
+		elif typename_new(typeof(astobj.left)).name=='tuple':
 			ret=typeof(astobj.left)
-		elif type(typeof(astobj.right))==type(List[int]) and typeof(astobj.right)._name=='Tuple':
+		elif typename_new(typeof(astobj.right)).name=='tuple':
 			ret=typeof(astobj.right)
-		elif type(typeof(astobj.left))==type(List[int]) and typeof(astobj.right)._name=='Set':
+		elif typename_new(typeof(astobj.left)).name=='set':
 			ret=typeof(astobj.left)
-		elif type(typeof(astobj.right))==type(List[int]) and typeof(astobj.right)._name=='Set':
+		elif typename_new(typeof(astobj.right)).name=='set':
 			ret=typeof(astobj.right)
-		elif type(typeof(astobj.left))==type(List[int]) and typeof(astobj.right)._name=='Dict':
+		elif typename_new(typeof(astobj.left)).name=='dict':
 			ret=typeof(astobj.left)
-		elif type(typeof(astobj.right))==type(List[int]) and typeof(astobj.right)._name=='Dict':
+		elif typename_new(typeof(astobj.right)).name=='dict':
 			ret=typeof(astobj.right)
 		elif typeof(astobj.left)==int:
 			ret=typeof(astobj.left)
@@ -262,7 +291,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=List[t]
+		ret=typename(typename_new(name='list',elt=t))
 	elif type(astobj)==ast.Tuple:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -272,7 +301,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=List[t]
+		ret=typename(typename_new(name='list',elt=t))
 	elif type(astobj)==ast.Set:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -282,7 +311,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=Set[t]
+		ret=typename(typename_new(name='set',elt=t))
 	elif type(astobj)==ast.Dict:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -296,7 +325,7 @@ def typeof(astobj):
 			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.keys[0]),typeof(astobj.values[0])
-		ret=Dict[t[0],t[1]]
+		ret=typename(typename_new(name='dict',key=t[0],value=t[1]))
 	elif type(astobj)==ListComp:
 		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
@@ -306,8 +335,10 @@ def typeof(astobj):
 	elif type(astobj)==DictComp:
 		ret=typename(name='dict',key=typeof(astobj.key),value=typeof(astobj.value))
 	elif type(astobj)==Subscript:
-		if type(typeof(astobj.value))==type(List[int]):
-			ret=typeof(astobj.value).__args__[-1]
+		if typename_new(typeof(astobj.value)) in 'list tuple set'.split():
+			ret=typeof(astobj.value).elt
+		elif typename_new(typeof(astobj.value)) in 'dict'.split():
+			ret=typeof(astobj.value).value
 		else:
 			ret=typeof(astobj.value)
 	if ret==None:
@@ -329,20 +360,18 @@ def type_convert(q):
 		return 'long double'
 	if q==typename(name='str'):
 		return 'u32string'
-	if type(q)==type(List[int]):
-		if q._name=='List':
-			return 'vector<'+','.join([type_convert(w) for w in q.__args__])+'>'
-		if q._name=='Tuple':
-			return 'vector<'+','.join([type_convert(w) for w in q.__args__])+'>'
-		if q._name=='Set':
-			return 'set<'+','.join([type_convert(w) for w in q.__args__])+'>'
-		if q._name=='Dict':
-			return 'map<'+','.join([type_convert(w) for w in q.__args__])+'>'
-	if type(q)==str and q=='void':
-		return q
-	# if type(q)==type(Callable[[],int]):
-	# 	if q._name=='Callable':
-	# 		return 'function'
+	if typename_new(q).name=='list':
+		return 'vector<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
+	if typename_new(q).name=='tuple':
+		return 'vector<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
+	if typename_new(q).name=='set':
+		return 'set<'+','.join([type_convert(w) for w in [typename_new(q).elt]])+'>'
+	if typename_new(q).name=='dict':
+		return 'map<'+','.join([type_convert(w) for w in [typename_new(q).key,typename_new(q).value]])+'>'
+	if typename_new(q).name=='void':
+		return 'void'
+	if typename_new(q).name=='callable':
+		return 'function'
 	error('type',q,'not found')
 
 def return_type(astobj,r=0):
@@ -547,12 +576,14 @@ def generate(astobj):
 		'\t'*indent+'}`'
 	elif type(astobj)==For:
 		if type(astobj.target)==Name:
-			if type(typeof(astobj.iter))==type(List[int]):
-				name(astobj.target.id,typeof(astobj.iter).__args__[0])
+			if typename_new(typeof(astobj.iter)).name in 'list tuple set'.split():
+				name(astobj.target.id,typename_new(typeof(astobj.iter)).elt)
+			elif typename_new(typeof(astobj.iter)).name in 'dict'.split():
+				name(astobj.target.id,typename_new(typeof(astobj.iter)).key)
 			else:
 				name(astobj.target.id,typeof(astobj.iter))
 		ret='\t'*indent+'for (auto iterator:'+generate(astobj.iter)+'){\n'+\
-		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(typeof(astobj.iter))+'({iterator})' if type(typeof(astobj.iter))!=type(List[int]) else 'iterator.first' if typeof(astobj.iter)._name=='Dict' else 'iterator')+';\n'+\
+		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(typeof(astobj.iter))+'({iterator})' if typename_new(typeof(astobj.iter)).name not in 'list tuple set dict'.split() else 'iterator.first' if typename_new(typeof(astobj.iter)).name=='dict' else 'iterator')+';\n'+\
 		''.join([generate(w) for w in astobj.body])+\
 		'\t'*indent+'}'
 	elif type(astobj)==ListComp:
@@ -697,9 +728,7 @@ def generate(astobj):
 		if type(astobj.slice==Slice):
 			pass
 		else:
-			if type(typeof(astobj.value))!=type(List[int]) or astobj.values._name=='List':
-				pass
-			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if type(typeof(astobj.value))==type(List[int]) else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
+			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if typename_new(typeof(astobj.value)).name in 'list tuple set dict'.split() else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
 	indent-=1
 	gen_stack.pop()
 	return ret
