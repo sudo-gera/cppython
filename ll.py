@@ -4,7 +4,6 @@ from re import *
 from pprint import pprint
 from ast import *
 import ast
-from typing import *
 from copy import copy
 try:
 	from icecream import ic as _ic
@@ -45,51 +44,13 @@ def esc(q):
 	q=[q[w:w+3] for w in range(len(q))]
 	return ''.join(['_0' if w[0]=='_' and w[1:]=='0x' else w[0] if w[0] in '1234567890poiuytrewqasdfghjklmnbvcxz_ZXCVBNMLKJHGFDSAQWERTYUIOP' else '_'+str(hex(ord(w[0])))+'x0_' for w in q])
 
-class typename_new:
+class typename:
 	def __init__(s,o=None,**q):
 		if type(o)==dict:
 			q=o
-		s.q={}
+		s.q=q
 		if type(s)==type(o):
 			s.q.update(o.q)
-		elif o!=None:
-			d=s
-			class s():pass
-			s=s()
-			if o==int:
-				s.name='int'
-			if o==bool:
-				s.name='bool'
-			if o==float:
-				s.name='float'
-			if o==str:
-				s.name='str'
-			if type(o)==str and o=='void':
-				s.name='void'
-			if type(q)==type(Callable[[],'void'].__args__[-1]) and type(q.__forward_arg__) and q.__forward_arg__=='void':
-				s.name='void'
-			if type(o)==type(List[int]):
-				if o._name=='List':
-					s.name='list'
-					s.elt=o.__args__[0]
-				if o._name=='Tuple':
-					s.name='tuple'
-					s.elt=o.__args__[0]
-				if o._name=='Set':
-					s.name='set'
-					s.elt=o.__args__[0]
-				if o._name=='Dict':
-					s.name='dict'
-					s.key=o.__args__[0]
-					s.value=o.__args__[1]
-			if type(o)==type(Callable[[],int]):
-				s.name='callable'
-				s.args=o.__args__[:-1]
-			d.q.update(s.__dict__)
-			s=d
-		else:
-			s.q=q
-		# s.q={w:typename_new(s.q[w]) for w in s.q}
 	def __eq__(s,o):
 		if type(s)==type(o):
 			return s.__dict__==o.__dict__
@@ -103,45 +64,9 @@ class typename_new:
 		from pickle import dumps
 		return hash(dumps(s.q))
 	def __reduce__(s):
-		return typename_new,(s.q,)
-
-def typename(o=None,**q):
-	if type(o)==typename_new:
-		if o.name in 'list tuple set'.split():
-			q={'name':o.name,'elt':o.elt}
-		elif o.name in 'dict'.split():
-			q={'name':o.name,'key':o.key,'value':o.value}
-		elif o.name in 'callable'.split():
-			q={'name':o.name,'args':o.args}
-		else:
-			q={'name':o.name}
-	class a:pass
-	a=a()
-	for w in q:
-		a.__dict__[w]=q[w]
-	q,a=a,q
-	if 'name' in a:
-		if q.name=='int':
-			return int
-		if q.name=='bool':
-			return bool
-		if q.name=='float':
-			return float
-		if q.name=='str':
-			return str
-		if q.name=='list' and 'elt' in a:
-			return List[q.elt]
-		if q.name=='set' and 'elt' in a:
-			return Set[q.elt]
-		if q.name=='dict' and 'key' in a and 'value' in a:
-			return Dict[q.key,q.value]
-		if q.name=='void':
-			return 'void'
-		if q.name=='callable' and 'args' in a:
-			return Callable[q.args,None]
-	error('cannot create type from',a)
-
-typename=typename_new
+		return typename,(s.q,)
+	def __repr__(s):
+		return 'typename'+repr(s.q)
 
 var_creation=[]
 var_escape=[]
@@ -173,17 +98,17 @@ def name(q,t=None,e=0):
 		else:
 			c='0___0'
 			def pname(q):
-				if (q).name in 'list set tuple'.split():
-					z,x=(q).name,'L_'+'__'.join([pname(w) for w in [(q).elt]])+'_J'
-				elif (q).name in 'dict'.split():
-					z,x=(q).name,'L_'+'__'.join([pname(w) for w in [(q).key,(q).value]])+'_J'
-				elif (q).name=='callable':
-					z,x=(q).name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
+				if q.name in 'list set tuple'.split():
+					z,x=q.name,'L_'+'__'.join([pname(w) for w in [q.elt]])+'_J'
+				elif q.name in 'dict'.split():
+					z,x=q.name,'L_'+'__'.join([pname(w) for w in [q.key,q.value]])+'_J'
+				elif q.name=='callable':
+					z,x=q.name,'L_'+'__'.join([pname(w) for w in q.args[:-1]])+'_J'
 				else:
-					z,x=(q).name,''
+					z,x=q.name,''
 				# z=[(w if w==w.lower() else '_'+w.lower()+'_') if e else (w if w==w.upper() else '_'+w.upper()+'_').lower() for e,w in enumerate(z)]
 				return ''.join(z)+('_'+x if x else '')
-			if (t).name in 'int bool float str list set tuple dict'.split():
+			if t.name in 'int bool float str list set tuple dict callable bytes bytearray'.split():
 				c='0____0'
 				x=pname(t)
 			else:
@@ -193,7 +118,7 @@ def name(q,t=None,e=0):
 				z=z.replace('0'+'_'*w+'0','0'+'_'*(w+3)+'0')
 			for w in range(x.count('_')+1,2,-1):
 				x=x.replace('0'+'_'*w+'0','0'+'_'*(w+3)+'0')
-			v=''.join([w[None]+'0_____0' for w in var_creation[:index+1]])+z+c+x
+			v=''.join([w[None]+'0_____0' for w in var_creation[1:index+1]])+z+c+x
 
 		var_creation[index][q]=v
 		var_creation[index][(q,t)]=var_creation[index][q]
@@ -209,6 +134,10 @@ before_main=''
 
 def typeof(astobj):
 	gen_stack.append(astobj)
+	try:
+		(dump(astobj,indent=4))
+	except:
+		print(astobj)
 	ret=None
 	if 0:
 		pass
@@ -222,34 +151,39 @@ def typeof(astobj):
 		elif type(astobj.op)==Invert:
 			ret=typeof(astobj.operand)
 	elif type(astobj)==BinOp:
-		if typeof(astobj.left)==float:
+		if typeof(astobj.left).name=='float':
 			ret=typeof(astobj.left)
-		elif typeof(astobj.right)==float:
-			ret=typeof(astobj.left)
-		elif typeof(astobj.left)==str:
-			ret=typeof(astobj.left)
-		elif typeof(astobj.right)==str:
+		elif typeof(astobj.right).name=='float':
 			ret=typeof(astobj.right)
-		elif (typeof(astobj.left)).name=='list':
+		elif typeof(astobj.left).name=='str':
 			ret=typeof(astobj.left)
-		elif (typeof(astobj.right)).name=='list':
+		elif typeof(astobj.right).name=='str':
 			ret=typeof(astobj.right)
-		elif (typeof(astobj.left)).name=='tuple':
+		elif typeof(astobj.left).name=='bytes':
 			ret=typeof(astobj.left)
-		elif (typeof(astobj.right)).name=='tuple':
+		elif typeof(astobj.right).name=='bytes':
 			ret=typeof(astobj.right)
-		elif (typeof(astobj.left)).name=='set':
+		elif typeof(astobj.left).name=='bytearray':
 			ret=typeof(astobj.left)
-		elif (typeof(astobj.right)).name=='set':
+		elif typeof(astobj.right).name=='bytearray':
 			ret=typeof(astobj.right)
-		elif (typeof(astobj.left)).name=='dict':
+		elif typeof(astobj.left).name=='tuple':
 			ret=typeof(astobj.left)
-		elif (typeof(astobj.right)).name=='dict':
+		elif typeof(astobj.right).name=='tuple':
+			ret=typeof(astobj.right)
+		elif typeof(astobj.left).name=='set':
+			ret=typeof(astobj.left)
+		elif typeof(astobj.right).name=='set':
+			ret=typeof(astobj.right)
+		elif typeof(astobj.left).name=='dict':
+			ret=typeof(astobj.left)
+		elif typeof(astobj.right).name=='dict':
 			ret=typeof(astobj.right)
 		elif typeof(astobj.left)==int:
 			ret=typeof(astobj.left)
 		elif typeof(astobj.right)==int:
 			ret=typeof(astobj.right)
+		ret=typeof(astobj.left)
 	elif type(astobj)==BoolOp:
 		ret=typename(name='bool')
 	elif type(astobj)==Compare:
@@ -291,7 +225,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename((name='list',elt=t))
+		ret=typename(name='list',elt=t)
 	elif type(astobj)==ast.Tuple:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -301,7 +235,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename((name='list',elt=t))
+		ret=typename(name='tuple',elt=t)
 	elif type(astobj)==ast.Set:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -311,7 +245,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename((name='set',elt=t))
+		ret=typename(name='set',elt=t)
 	elif type(astobj)==ast.Dict:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -325,22 +259,25 @@ def typeof(astobj):
 			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.keys[0]),typeof(astobj.values[0])
-		ret=typename((name='dict',key=t[0],value=t[1]))
+		ret=typename(name='dict',key=t[0],value=t[1])
 	elif type(astobj)==ListComp:
 		ret=typename(name='list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
-		ret=typename(name='list',elt=typeof(astobj.elt))
+		ret=typename(name='tuple',elt=typeof(astobj.elt))
 	elif type(astobj)==SetComp:
 		ret=typename(name='set',elt=typeof(astobj.elt))
 	elif type(astobj)==DictComp:
 		ret=typename(name='dict',key=typeof(astobj.key),value=typeof(astobj.value))
 	elif type(astobj)==Subscript:
-		if (typeof(astobj.value)) in 'list tuple set'.split():
+		if typeof(astobj.value) in 'list tuple set'.split():
 			ret=typeof(astobj.value).elt
-		elif (typeof(astobj.value)) in 'dict'.split():
+		elif typeof(astobj.value) in 'dict'.split():
 			ret=typeof(astobj.value).value
 		else:
 			ret=typeof(astobj.value)
+	elif type(astobj)==Call:
+		if type(astobj.func)==Name:
+			return return_type(functions[astobj.func.id].body)
 	if ret==None:
 		try:
 			dump(astobj)
@@ -360,17 +297,21 @@ def type_convert(q):
 		return 'long double'
 	if q==typename(name='str'):
 		return 'u32string'
-	if (q).name=='list':
-		return 'vector<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
-	if (q).name=='tuple':
-		return 'vector<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
-	if (q).name=='set':
-		return 'set<'+','.join([type_convert(w) for w in [(q).elt]])+'>'
-	if (q).name=='dict':
-		return 'map<'+','.join([type_convert(w) for w in [(q).key,(q).value]])+'>'
-	if (q).name=='void':
+	if q==typename(name='bytes'):
+		return 'string'
+	if q==typename(name='bytearray'):
+		return 'string'
+	if q.name=='list':
+		return 'vector<'+','.join([type_convert(w) for w in [q.elt]])+'>'
+	if q.name=='tuple':
+		return 'vector<'+','.join([type_convert(w) for w in [q.elt]])+'>'
+	if q.name=='set':
+		return 'set<'+','.join([type_convert(w) for w in [q.elt]])+'>'
+	if q.name=='dict':
+		return 'map<'+','.join([type_convert(w) for w in [q.key,q.value]])+'>'
+	if q.name=='void':
 		return 'void'
-	if (q).name=='callable':
+	if q.name=='callable':
 		return 'function'
 	error('type',q,'not found')
 
@@ -438,8 +379,8 @@ def generate(astobj):
 		arglist=[w for w in zip(arglist,defaults)]
 		if all([w[0].annotation!=None or w[1]!=None for w in arglist]):
 			arglist=[[w[0].arg,w[1],w[0].annotation] for w in arglist]
-			if (astobj.name,Callable[[w[2] for w in arglist],None]) not in var_creation[-1]:
-				fn=name(astobj.name,Callable[[w[2] for w in arglist],None],e=1)
+			if (astobj.name,typename(name='callable',args=[w[2] for w in arglist])) not in var_creation[-1]:
+				fn=name(astobj.name,typename(name='callable',args=[w[2] for w in arglist]),e=1)
 				var_creation.append({None:astobj.name})
 				var_escape.append({})
 				var_nonlocal.append(set())
@@ -575,15 +516,17 @@ def generate(astobj):
 		''.join([generate(w) for w in astobj.body])+\
 		'\t'*indent+'}`'
 	elif type(astobj)==For:
+		r=generate(astobj.iter)
+		t=typeof(astobj.iter)
 		if type(astobj.target)==Name:
-			if (typeof(astobj.iter)).name in 'list tuple set'.split():
-				name(astobj.target.id,(typeof(astobj.iter)).elt)
-			elif (typeof(astobj.iter)).name in 'dict'.split():
-				name(astobj.target.id,(typeof(astobj.iter)).key)
+			if t.name in 'list tuple set'.split():
+				name(astobj.target.id,t.elt)
+			elif t.name in 'dict'.split():
+				name(astobj.target.id,t.key)
 			else:
-				name(astobj.target.id,typeof(astobj.iter))
-		ret='\t'*indent+'for (auto iterator:'+generate(astobj.iter)+'){\n'+\
-		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(typeof(astobj.iter))+'({iterator})' if (typeof(astobj.iter)).name not in 'list tuple set dict'.split() else 'iterator.first' if (typeof(astobj.iter)).name=='dict' else 'iterator')+';\n'+\
+				name(astobj.target.id,t)
+		ret='\t'*indent+'for (auto iterator:'+r+'){\n'+\
+		'\t'*indent+'\t'+generate(astobj.target)+'='+(type_convert(t)+'({iterator})' if t.name not in 'list tuple set dict'.split() else 'iterator.first' if t.name=='dict' else 'iterator')+';\n'+\
 		''.join([generate(w) for w in astobj.body])+\
 		'\t'*indent+'}'
 	elif type(astobj)==ListComp:
@@ -597,28 +540,14 @@ def generate(astobj):
 			ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
 			if type(w.target)==Name:
 				targets.append(w.target.id)
-		generate(ro)
+		r=generate(ro).replace('\t','    ')
 		l=ast.List(elts=[],type=typeof(astobj.elt))
 		generate(FunctionDef(name=fn,args=arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),body=[
 			Assign(targets=[Name(id=ln,ctx=Store())],value=l),
-			Nonlocal(names=targets),
-			ro,
+			Call(func=Name(id='exec',ctx=Load()),args=[Constant(value=r)],keywords={}),
 			Return(value=Name(id=ln,ctx=Load()))
 		],decorator_list=[]))
 		ret=generate(Call(func=Name(id=fn,ctx=Load()),args=[]))
-
-		# ln=random_string()
-		# ret=ln+'()'
-		# ro=Expr(value=Call(func=Attribute(value=Name(id='__python__res',ctx=Load()),attr='append',ctx=Load()),args=[astobj.elt],keywords=[]))
-		# for w in astobj.generators[::-1]:
-		# 	for e in w.ifs:
-		# 		ro=If(test=e,orelse=[],body=[ro])
-		# 	ro=For(target=w.target,iter=w.iter,orelse=[],body=[ro])
-		# ro=generate(ro)
-		# before_main+='auto '+ln+'(){\n'\
-		# 	+'\tauto __python__res='+type_convert(typeof(astobj))+'();\n'\
-		# 	+'\t'+ro+'\n'\
-		# 	+'return __python__res;}\n'
 	elif type(astobj)==GeneratorExp:
 		fn=random_string()
 		ln=random_string()
@@ -631,7 +560,7 @@ def generate(astobj):
 			if type(w.target)==Name:
 				targets.append(w.target.id)
 		generate(ro)
-		l=ast.List(elts=[],type=typeof(astobj.elt))
+		l=ast.Tuple(elts=[],type=typeof(astobj.elt))
 		generate(FunctionDef(name=fn,args=arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),body=[
 			Assign(targets=[Name(id=ln,ctx=Store())],value=l),
 			Nonlocal(names=targets),
@@ -728,7 +657,28 @@ def generate(astobj):
 		if type(astobj.slice==Slice):
 			pass
 		else:
-			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if (typeof(astobj.value)).name in 'list tuple set dict'.split() else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
+			ret=generate(astobj.value)+'['+generate(astobj.slice)+']' if typeof(astobj.value).name in 'list tuple set dict'.split() else type_convert(typeof(astobj.value))+'({'+generate(astobj.value)+'['+generate(astobj.slice)+']})'
+	elif type(astobj)==AugAssign:
+		if type(astobj.op)==Add:
+			ret='(('+generate(astobj.target)+')+=('+generate(astobj.value)+'));'
+		if type(astobj.op)==Sub:
+			ret='(('+generate(astobj.target)+')-=('+generate(astobj.value)+'));'
+		if type(astobj.op)==Mult:
+			ret='(('+generate(astobj.target)+')*=('+generate(astobj.value)+'));'
+		if type(astobj.op)==Div:
+			ret='(('+generate(astobj.target)+')/=('+generate(astobj.value)+'));'
+		if type(astobj.op)==FloorDiv:
+			ret='(('+generate(astobj.target)+')/=('+generate(astobj.value)+'));'
+		if type(astobj.op)==Mod:
+			ret='(('+generate(astobj.target)+')%=('+generate(astobj.value)+'));'
+		if type(astobj.op)==LShift:
+			ret='(('+generate(astobj.target)+')<<=('+generate(astobj.value)+'));'
+		if type(astobj.op)==RShift:
+			ret='(('+generate(astobj.target)+')>>=('+generate(astobj.value)+'));'
+		if type(astobj.op)==BitOr:
+			ret='(('+generate(astobj.target)+')|=('+generate(astobj.value)+'));'
+		if type(astobj.op)==BitAnd:
+			ret='(('+generate(astobj.target)+')&=('+generate(astobj.value)+'));'
 	indent-=1
 	gen_stack.pop()
 	return ret
