@@ -35,7 +35,7 @@ random_string_seed=100000000
 def random_string(name=None):
 	global random_string_seed
 	random_string_seed+=1
-	return '_'+str(random_string_seed)+(make_comment(name) if name !=None else '')+'_'
+	return '_'+str(random_string_seed)+(esc(name) if name !=None else '')+'_'
 
 def make_comment(q):
 	return ' /*'+str(q).replace('*/','*_/')+'*/ '
@@ -43,30 +43,6 @@ def make_comment(q):
 def esc(q):
 	q=[q[w:w+3] for w in range(len(q))]
 	return ''.join(['_0' if w[0]=='_' and w[1:]=='0x' else w[0] if w[0] in '1234567890poiuytrewqasdfghjklmnbvcxz_ZXCVBNMLKJHGFDSAQWERTYUIOP' else '_'+str(hex(ord(w[0])))+'x0_' for w in q])
-
-class typename:
-	def __init__(s,o=None,**q):
-		if type(o)==dict:
-			q=o
-		s.q=q
-		if type(s)==type(o):
-			s.q.update(o.q)
-	def __eq__(s,o):
-		if type(s)==type(o):
-			return s.__dict__==o.__dict__
-		return False
-	def __getattr__(s,n):
-		if n in s.q:
-			return s.q[n]
-		else:
-			error(s.name,'has no',n)
-	def __hash__(s):
-		from pickle import dumps
-		return hash(dumps(s.q))
-	def __reduce__(s):
-		return typename,(s.q,)
-	def __repr__(s):
-		return 'typename'+repr(s.q)
 
 var_creation=[]
 var_escape=[]
@@ -147,7 +123,7 @@ def typeof(astobj):
 		elif type(astobj.op)==USub:
 			ret=typeof(astobj.operand)
 		elif type(astobj.op)==Not:
-			ret=typename(name='bool')
+			ret=typename('bool')
 		elif type(astobj.op)==Invert:
 			ret=typeof(astobj.operand)
 	elif type(astobj)==BinOp:
@@ -179,15 +155,15 @@ def typeof(astobj):
 			ret=typeof(astobj.left)
 		elif typeof(astobj.right).name=='dict':
 			ret=typeof(astobj.right)
-		elif typeof(astobj.left)==int:
+		elif typeof(astobj.left).name=='int':
 			ret=typeof(astobj.left)
-		elif typeof(astobj.right)==int:
+		elif typeof(astobj.right).name=='int':
 			ret=typeof(astobj.right)
 		ret=typeof(astobj.left)
 	elif type(astobj)==BoolOp:
-		ret=typename(name='bool')
+		ret=typename('bool')
 	elif type(astobj)==Compare:
-		ret=typename(name='bool')
+		ret=typename('bool')
 	elif type(astobj)==IfExp:
 		if typeof(astobj.body)!=typeof(astobj.orelse):
 			error('different types in',type(astobj).__name__.lower())
@@ -195,10 +171,10 @@ def typeof(astobj):
 	elif type(astobj)==NamedExpr:
 		ret=typeof(astobj.value)
 	elif type(astobj)==JoinedStr:
-		ret=typename(name='str')
+		ret=typename('str')
 	elif type(astobj)==Constant:
 		# if typenameenable:
-		ret=typename(name=type(astobj.value).__name__)
+		ret=typename(type(astobj.value).__name__)
 		# else:
 		# 	ret=type(astobj.value)
 	elif type(astobj)==Name:
@@ -225,7 +201,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(name='list',elt=t)
+		ret=typename('list',elt=t)
 	elif type(astobj)==ast.Tuple:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -235,7 +211,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(name='tuple',elt=t)
+		ret=typename('tuple',elt=t)
 	elif type(astobj)==ast.Set:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -245,7 +221,7 @@ def typeof(astobj):
 			if any([typeof(astobj.elts[w])!=typeof(astobj.elts[w+1]) for w in range(len(astobj.elts)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.elts[0])
-		ret=typename(name='set',elt=t)
+		ret=typename('set',elt=t)
 	elif type(astobj)==ast.Dict:
 		if hasattr(astobj,'type'):
 			t=astobj.type
@@ -259,15 +235,15 @@ def typeof(astobj):
 			if any([typeof(astobj.values[w])!=typeof(astobj.values[w+1]) for w in range(len(astobj.values)-1)]):
 				error('different types in',type(astobj).__name__.lower())
 			t=typeof(astobj.keys[0]),typeof(astobj.values[0])
-		ret=typename(name='dict',key=t[0],value=t[1])
+		ret=typename('dict',key=t[0],value=t[1])
 	elif type(astobj)==ListComp:
-		ret=typename(name='list',elt=typeof(astobj.elt))
+		ret=typename('list',elt=typeof(astobj.elt))
 	elif type(astobj)==GeneratorExp:
-		ret=typename(name='tuple',elt=typeof(astobj.elt))
+		ret=typename('tuple',elt=typeof(astobj.elt))
 	elif type(astobj)==SetComp:
-		ret=typename(name='set',elt=typeof(astobj.elt))
+		ret=typename('set',elt=typeof(astobj.elt))
 	elif type(astobj)==DictComp:
-		ret=typename(name='dict',key=typeof(astobj.key),value=typeof(astobj.value))
+		ret=typename('dict',key=typeof(astobj.key),value=typeof(astobj.value))
 	elif type(astobj)==Subscript:
 		if typeof(astobj.value) in 'list tuple set'.split():
 			ret=typeof(astobj.value).elt
@@ -289,17 +265,17 @@ def typeof(astobj):
 	return ret
 
 def type_convert(q):
-	if q==typename(name='int'):
+	if q==typename('int'):
 		return 'int64_t'
-	if q==typename(name='bool'):
+	if q==typename('bool'):
 		return 'bool'
-	if q==typename(name='float'):
+	if q==typename('float'):
 		return 'long double'
-	if q==typename(name='str'):
+	if q==typename('str'):
 		return 'u32string'
-	if q==typename(name='bytes'):
+	if q==typename('bytes'):
 		return 'string'
-	if q==typename(name='bytearray'):
+	if q==typename('bytearray'):
 		return 'string'
 	if q.name=='list':
 		return 'vector<'+','.join([type_convert(w) for w in [q.elt]])+'>'
@@ -339,7 +315,7 @@ def return_type(astobj,r=0):
 	gen_stack.pop()
 	if r==0:
 		if len(ret)==0:
-			ret.append(typename(name='void'))
+			ret.append(typename('void'))
 		return ret[0]
 	else:
 		return ret
@@ -379,8 +355,8 @@ def generate(astobj):
 		arglist=[w for w in zip(arglist,defaults)]
 		if all([w[0].annotation!=None or w[1]!=None for w in arglist]):
 			arglist=[[w[0].arg,w[1],w[0].annotation] for w in arglist]
-			if (astobj.name,typename(name='callable',args=[w[2] for w in arglist])) not in var_creation[-1]:
-				fn=name(astobj.name,typename(name='callable',args=[w[2] for w in arglist]),e=1)
+			if (astobj.name,typename('callable',args=[w[2] for w in arglist])) not in var_creation[-1]:
+				fn=name(astobj.name,typename('callable',args=[w[2] for w in arglist]),e=1)
 				var_creation.append({None:astobj.name})
 				var_escape.append({})
 				var_nonlocal.append(set())
@@ -411,20 +387,207 @@ def generate(astobj):
 			functions[astobj.name]=astobj
 		ret=''
 	elif type(astobj)==Call:
-		if type(astobj.func)==Name and astobj.func.id=='exec' and len(astobj.args)==1 and type(astobj.args[0])==Constant and type(astobj.args[0].value)==str:
-			ret=astobj.args[0].value
-		elif type(astobj.func)==Name and astobj.func.id in functions:
-			f=functions[astobj.func.id]
-			f=copy(f)
-			defaults=f.args.defaults
-			defaults=[None]*(len(f.args.posonlyargs+f.args.args)-len(defaults))+defaults
-			for q,w in enumerate(f.args.posonlyargs+f.args.args):
-				if q<len(astobj.args):
-					w.annotation=typeof(astobj.args[q])
-				else:
-					w.annotation=typeof(defaults[q])
-			generate(f)
-			ret=generate(astobj.func)+'('+','.join([generate(w) for w in astobj.args])+')'
+		if type(astobj.func)==Name:
+			if astobj.func.id=='bool' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='int':
+					ret='bool('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='bool('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='str':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='list':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='tuple':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='set':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='dict':
+					ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='int' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='int64_t('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='int':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='int('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='str':
+					ret='stol(to_u8('+generate(astobj.args[0])+'))'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='stol('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='stol('+generate(astobj.args[0])+')'
+			elif astobj.func.id=='float' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='(long double)('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='int':
+					ret='(long double)('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='str':
+					ret='stold(to_u8('+generate(astobj.args[0])+'))'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='stold('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='stold('+generate(astobj.args[0])+')'
+			elif astobj.func.id=='str' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='to_u32(('+generate(astobj.args[0])+')?"True":"False")'
+				if typeof(astobj.args[0]).name=='int':
+					ret='to_u32(to_string('+generate(astobj.args[0])+'))'
+				if typeof(astobj.args[0]).name=='float':
+					ret='to_u32(to_string('+generate(astobj.args[0])+'))'
+				if typeof(astobj.args[0]).name=='str':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='to_u32('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='to_u32('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='list':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='tuple':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='set':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='dict':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='bytes' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='string(('+generate(astobj.args[0])+')?"True":"False")'
+				if typeof(astobj.args[0]).name=='int':
+					ret='to_string('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='to_string('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='str':
+					ret='to_u8('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='list':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='tuple':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='set':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='dict':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='bytearray' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='string(('+generate(astobj.args[0])+')?"True":"False")'
+				if typeof(astobj.args[0]).name=='int':
+					ret='to_string('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='to_string('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='str':
+					ret='to_u8('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='list':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='tuple':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='set':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='dict':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='repr' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='to_u32(('+generate(astobj.args[0])+')?"True":"False")'
+				if typeof(astobj.args[0]).name=='int':
+					ret='to_u32(to_string('+generate(astobj.args[0])+'))'
+				if typeof(astobj.args[0]).name=='float':
+					ret='to_u32(to_string('+generate(astobj.args[0])+'))'
+				# if typeof(astobj.args[0]).name=='str':
+				# 	ret='('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='bytes':
+				# 	ret='to_u32('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='bytearray':
+				# 	ret='to_u32('+generate(astobj.args[0])+')'
+				# if typeof(astobj.args[0]).name=='list':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='tuple':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='set':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+				# if typeof(astobj.args[0]).name=='dict':
+				# 	ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='len' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='str':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='bytes':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='bytearray':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='list':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='tuple':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='set':
+					ret='(('+generate(astobj.args[0])+').size())'
+				if typeof(astobj.args[0]).name=='dict':
+					ret='(('+generate(astobj.args[0])+').size())'
+			elif astobj.func.id=='abs' and len(astobj.args)==1:
+				if typeof(astobj.args[0]).name=='bool':
+					ret='abs('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='int':
+					ret='abs('+generate(astobj.args[0])+')'
+				if typeof(astobj.args[0]).name=='float':
+					ret='abs('+generate(astobj.args[0])+')'
+			elif astobj.func.id=='callable' and len(astobj.args)==1:
+				ret='false'
+				if typeof(astobj.args[0]).name=='callable':
+					ret='true'
+			elif astobj.func.id=='print':
+				ret='cout<<('+')<<\' \'<<('.join([generate(Call(func=Name(id='bytes',ctx=Load()),args=[w],keywords={})) for w in astobj.args])+')<<\'\\n\''
+			elif astobj.func.id=='write':
+				ret='cout<<('+')<<('.join([generate(Call(func=Name(id='bytes',ctx=Load()),args=[w],keywords={})) for w in astobj.args])+')'
+			elif astobj.func.id=='exec' and len(astobj.args)==1 and type(astobj.args[0])==Constant and type(astobj.args[0].value)==str:
+				ret=astobj.args[0].value
+			elif astobj.func.id in functions:
+				f=functions[astobj.func.id]
+				f=copy(f)
+				defaults=f.args.defaults
+				defaults=[None]*(len(f.args.posonlyargs+f.args.args)-len(defaults))+defaults
+				for q,w in enumerate(f.args.posonlyargs+f.args.args):
+					if q<len(astobj.args):
+						w.annotation=typeof(astobj.args[q])
+					else:
+						w.annotation=typeof(defaults[q])
+				generate(f)
+				ret=generate(astobj.func)+'('+','.join([generate(w) for w in astobj.args])+')'
+		elif type(astobj.func)==Attribute:
+			value=generate(astobj.func.value)
+			if typeof(astobj.func.value).name=='int':
+				
+			if typeof(astobj.func.value).name=='bool':
+				pass
+			if typeof(astobj.func.value).name=='float':
+				pass
+			if typeof(astobj.func.value).name=='str':
+				pass
+			if typeof(astobj.func.value).name=='list':
+				pass
+			if typeof(astobj.func.value).name=='set':
+				pass
+			if typeof(astobj.func.value).name=='tuple':
+				pass
+			if typeof(astobj.func.value).name=='dict':
+				pass
+			if typeof(astobj.func.value).name=='callable':
+				pass
+			if typeof(astobj.func.value).name=='bytes':
+				pass
+			if typeof(astobj.func.value).name=='bytearray':
+				pass
+
 	elif type(astobj)==Expr:
 		ret='\t'*indent+generate(astobj.value)+';\n'
 	elif type(astobj)==Assign:
@@ -496,7 +659,7 @@ def generate(astobj):
 		ret='\t'*indent+make_comment('pass')+'\n'
 	elif type(astobj)==Return:
 		if astobj.value==None:
-			astobj.type=typename(name='void')
+			astobj.type=typename('void')
 			ret='\t'*indent+'return ;\n'
 		else:
 			astobj.type=typeof(astobj.value)
@@ -683,7 +846,7 @@ def generate(astobj):
 	gen_stack.pop()
 	return ret
 
-# from headers import *
+from lh import *
 
 text=generate(parse(text))
 
